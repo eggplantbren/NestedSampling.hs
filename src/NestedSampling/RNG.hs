@@ -11,11 +11,20 @@ setSeed = (setStdGen . mkStdGen)
 rand :: Int -> IO [Double]
 rand n = replicateM n $ randomRIO (0 :: Double, 1)
 
+-- A random integer
+randInt :: Int -> IO Int
+randInt k
+    | k < 1        = undefined
+    | otherwise    = do
+                         u <- rand 1
+                         let kk = (fromIntegral k) :: Double
+                         return $ floor (kk*(u !! 0))
+
 -- A randn function
 randn :: Int -> IO [Double]
 randn n = do
-              x <- rand n;
-              y <- rand n;
+              x <- rand n
+              y <- rand n
               return $ zipWith boxMuller x y
 
 -- My favourite heavy tailed distribution
