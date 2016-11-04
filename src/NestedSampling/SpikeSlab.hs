@@ -4,17 +4,20 @@ import NestedSampling.Utils
 
 -- The SpikeSlab model --
 
-
 -- Log likelihood function
 logLikelihood :: [Double] -> Double
 logLikelihood params = logsumexp [100*logl1, logl2]
-                        where logl1 = 0.0;
-                              logl2 = 0.0
+            where logl1 = -0.5 * (sum $ map (\x -> ((x-shift)/u)**2 + z) params)
+                  logl2 = -0.5 * (sum $ map (\x -> (x/v)**2 + z) params)
+                  z = log (2*pi) :: Double
+                  u = 0.01 :: Double
+                  v = 0.1 :: Double
+                  shift = 0.03 :: Double
 
 -- Lives in IO and generates parameters from the prior
 fromPrior :: IO [Double]
 fromPrior = do
-                x <- rand 3
+                x <- rand 20
                 let y = map (\a -> a - 0.5) x
                 return y
 

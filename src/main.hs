@@ -10,7 +10,5 @@ main = do
 --    setSeed seed
     putStrLn "# NestedSampling.hs"
     x <- fromPrior
-    y <- perturb x
-    print x
-    print y
+    print $ logLikelihood x
 
