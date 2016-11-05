@@ -1,14 +1,13 @@
 import NestedSampling.RNG
 import NestedSampling.SpikeSlab
 
--- Random number seed for the run
-seed :: Int
-seed = 123
-
 main = do
     -- Set the seed
---    setSeed seed
+    -- setSeed 123
     putStrLn "# NestedSampling.hs"
-    x <- fromPrior
-    print $ logLikelihood x
+    putStrLn "# Generating 10 particles from the prior\
+                       \ and printing their log likelihoods"
+    let actions = [fromPrior | i <- [0..9]]
+    particles <- sequence actions
+    print $ map logLikelihood particles
 
