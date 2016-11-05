@@ -1,3 +1,4 @@
+import Control.Monad (replicateM)
 import NestedSampling.RNG
 import NestedSampling.SpikeSlab
 
@@ -9,15 +10,12 @@ main = do
     putStrLn "# Generating 10 particles from the prior\
                        \ and printing their log likelihoods"
 
-    -- List of IO actions which generate particles from the prior
-    let actions = [fromPrior | i <- [0..9]] :: [IO [Double]]
+    -- Generate particles from the prior
+    particles <- replicateM 10 fromPrior
 
-    -- Execute the actions
-    particles <- sequence actions
+    -- Apply logLikelihood to each particle
+    let lls = map logLikelihood particles
 
-    -- Get the log likelihoods and turn them into strings
-    let s = (map show $ map logLikelihood particles) :: [String]
-
-    -- Print them
-    putStrLn $ foldl (++) "" $ map (++ "\n") s
+    -- Print the results
+    mapM_ print lls
 
