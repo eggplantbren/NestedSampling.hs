@@ -3,7 +3,6 @@ module NestedSampling.Sampler where
 import Control.Monad (replicateM)
 import NestedSampling.SpikeSlab
 import System.IO (hFlush, stdout)
-import Data.List.Extras (argmin)
 
 -- A sampler
 data Sampler = Sampler
