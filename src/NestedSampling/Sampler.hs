@@ -1,8 +1,10 @@
 module NestedSampling.Sampler where
 
-import Control.Monad (replicateM)
-import NestedSampling.SpikeSlab
 import System.IO (hFlush, stdout)
+import Control.Monad (replicateM)
+
+import NestedSampling.SpikeSlab
+import NestedSampling.RNG
 
 -- A sampler
 data Sampler = Sampler
@@ -38,8 +40,19 @@ findWorstParticle sampler = (vec !! 0, worst)
         worst = minimum lls
         lls = theLogLikelihoods sampler
 
----- Replace worst particle
---replaceWorstParticle :: Sampler -> IO Sampler
---replaceWorstParticle 
-
+-- Function to do a metropolis update
+-- Input: A vector of parameters and a loglikelihood threshold
+-- Output: An IO action which would return a new vector of parameters
+-- and its log likelihood
+metropolisUpdate :: Double -> ([Double], Double) -> IO ([Double], Double)
+metropolisUpdate threshold (x, logL) = do
+    (proposal, logH) <- perturb x
+    let a = exp logH
+    uu <- rand 1
+    let u = uu !! 0
+    let llProposal = logLikelihood proposal
+    let accept = (u < a) && (llProposal > threshold)
+    let newParticle = if accept then proposal else x
+    let newLogL = if accept then llProposal else logL
+    return (newParticle, newLogL)
 
