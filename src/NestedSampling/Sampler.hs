@@ -40,12 +40,13 @@ findWorstParticle sampler = (vec !! 0, worst)
         worst = minimum lls
         lls = theLogLikelihoods sampler
 
--- Function to do a metropolis update
+-- Function to do a single metropolis update
 -- Input: A vector of parameters and a loglikelihood threshold
 -- Output: An IO action which would return a new vector of parameters
 -- and its log likelihood
 metropolisUpdate :: Double -> ([Double], Double) -> IO ([Double], Double)
 metropolisUpdate threshold (x, logL) = do
+    print logL
     (proposal, logH) <- perturb x
     let a = exp logH
     uu <- rand 1
@@ -55,4 +56,14 @@ metropolisUpdate threshold (x, logL) = do
     let newParticle = if accept then proposal else x
     let newLogL = if accept then llProposal else logL
     return (newParticle, newLogL)
+
+-- Function to do many metropolis updates
+metropolisUpdates :: Int -> Double -> ([Double], Double) -> IO ([Double], Double)
+metropolisUpdates n threshold (x, logL)
+    | n < 0     = undefined
+    | n == 0    = metropolisUpdate threshold (x, logL)
+    | otherwise = do
+                    result1 <- metropolisUpdate threshold (x, logL)
+                    result2 <- metropolisUpdates (n-1) threshold result1
+                    return result2
 

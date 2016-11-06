@@ -9,7 +9,11 @@ main = do
 
     -- Find worst particle
     let worst = findWorstParticle sampler
+    let particle = (theParticles sampler) !! (fst worst)
+    let logL = snd worst
+    let threshold = snd worst
 
-    -- Print worst particle (index, log likelihood)
-    print worst
+    -- Do some Metropolis
+    print threshold
+    metropolisUpdates 10 threshold (particle, logL)
 
