@@ -5,7 +5,7 @@ main = do
     -- setSeed 123
 
     -- Create and initialise sampler
-    sampler <- generateSampler 100
+    sampler <- generateSampler 100 1000
 
     -- Find worst particle
     let worst = findWorstParticle sampler
