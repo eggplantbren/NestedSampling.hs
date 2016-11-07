@@ -16,10 +16,17 @@ data Sampler = Sampler
                    iteration :: Int
                } deriving Show
 
+-- Choose a particle to copy, that isn't number k
+chooseCopy :: Int -> Int -> IO Int
+chooseCopy k n = do
+    let ii = [i | i <- [0..(n-1)], i /= k]
+    index <- randInt $ length ii
+    return $ ii !! index
+
 -- Generate a sampler with n particles and m mcmc steps
 generateSampler :: Int -> Int -> IO Sampler
 generateSampler n m
-    | n <= 0    = undefined
+    | n <= 1    = undefined
     | m <= 0    = undefined
     | otherwise = do
         putStr ("Generating " ++ (show n) ++ " particles\
@@ -30,7 +37,7 @@ generateSampler n m
         putStrLn "done."
         return Sampler {numParticles=n, mcmcSteps=m,
                         theParticles=theParticles,
-                        theLogLikelihoods=lls, iteration=0}
+                        theLogLikelihoods=lls, iteration=1}
 
 -- Find the index and the log likelihood value of the worst particle
 findWorstParticle :: Sampler -> (Int, Double)
@@ -47,7 +54,6 @@ findWorstParticle sampler = (vec !! 0, worst)
 -- and its log likelihood
 metropolisUpdate :: Double -> ([Double], Double) -> IO ([Double], Double)
 metropolisUpdate threshold (x, logL) = do
-    print logL
     (proposal, logH) <- perturb x
     let a = exp logH
     uu <- rand 1
@@ -74,6 +80,17 @@ nestedSamplingIteration :: Sampler -> IO Sampler
 nestedSamplingIteration sampler = do
     let worst = findWorstParticle sampler
     putStr $ "Iteration " ++ (show $ iteration sampler) ++ ". "
-    putStr $ "Log likelihood = " ++ (show $ snd worst)
+    putStrLn $ "Log likelihood = " ++ (show $ snd worst) ++ "."
+    let k = fst worst
+    let n = numParticles sampler
+    copy <- chooseCopy k n
+
+    -- Copy a surviving particle
+    let particle = ((theParticles sampler) !! copy,
+                        (theLogLikelihoods sampler) !! copy)
+
+    -- Do Metropolis
+    let update = metropolisUpdates (mcmcSteps sampler) (snd worst)
+    newParticle <- update particle
     return sampler
 

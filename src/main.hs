@@ -9,6 +9,6 @@ main = do
     sampler <- generateSampler 100 1000
 
     -- Do an NS iteration
-    let sampler' = nestedSamplingIteration sampler
+    sampler' <- nestedSamplingIteration sampler
     return ()
 
