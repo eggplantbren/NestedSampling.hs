@@ -10,5 +10,7 @@ main = do
 
     -- Do an NS iteration
     sampler' <- nestedSamplingIteration sampler
+    sampler'' <- nestedSamplingIteration sampler'
+    sampler''' <- nestedSamplingIteration sampler''
     return ()
 

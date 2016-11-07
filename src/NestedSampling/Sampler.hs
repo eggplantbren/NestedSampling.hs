@@ -81,9 +81,9 @@ nestedSamplingIteration sampler = do
     let worst = findWorstParticle sampler
     putStr $ "Iteration " ++ (show $ iteration sampler) ++ ". "
     putStrLn $ "Log likelihood = " ++ (show $ snd worst) ++ "."
-    let k = fst worst
+    let iWorst = fst worst
     let n = numParticles sampler
-    copy <- chooseCopy k n
+    copy <- chooseCopy iWorst n
 
     -- Copy a surviving particle
     let particle = ((theParticles sampler) !! copy,
@@ -92,5 +92,18 @@ nestedSamplingIteration sampler = do
     -- Do Metropolis
     let update = metropolisUpdates (mcmcSteps sampler) (snd worst)
     newParticle <- update particle
-    return sampler
+
+    -- Updated sampler
+    let sampler' = Sampler { numParticles=(numParticles sampler),
+                     mcmcSteps=(mcmcSteps sampler),
+                     theParticles=theParticles',
+                     theLogLikelihoods=theLogLikelihoods',
+                     iteration=(iteration sampler + 1) } where
+        theParticles' = [if i==iWorst then fst newParticle else
+                            ((theParticles sampler) !! i) |
+                            i <- [0..(numParticles sampler - 1)]]
+        theLogLikelihoods' = [if i==iWorst then snd newParticle else
+                            ((theLogLikelihoods sampler) !! i) |
+                            i <- [0..(numParticles sampler - 1)]]
+    return sampler'
 
