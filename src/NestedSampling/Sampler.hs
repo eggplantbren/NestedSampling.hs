@@ -28,8 +28,9 @@ generateSampler n m
         theParticles <- replicateM n fromPrior
         let lls = map logLikelihood theParticles
         putStrLn "done."
-        return Sampler {numParticles=n, mcmcSteps=m, theParticles=theParticles,
-                            theLogLikelihoods=lls, iteration=0}
+        return Sampler {numParticles=n, mcmcSteps=m,
+                        theParticles=theParticles,
+                        theLogLikelihoods=lls, iteration=0}
 
 -- Find the index and the log likelihood value of the worst particle
 findWorstParticle :: Sampler -> (Int, Double)
@@ -58,7 +59,8 @@ metropolisUpdate threshold (x, logL) = do
     return (newParticle, newLogL)
 
 -- Function to do many metropolis updates
-metropolisUpdates :: Int -> Double -> ([Double], Double) -> IO ([Double], Double)
+metropolisUpdates :: Int -> Double -> ([Double], Double)
+                                -> IO ([Double], Double)
 metropolisUpdates n threshold (x, logL)
     | n < 0     = undefined
     | n == 0    = metropolisUpdate threshold (x, logL)
@@ -66,4 +68,12 @@ metropolisUpdates n threshold (x, logL)
                     result1 <- metropolisUpdate threshold (x, logL)
                     result2 <- metropolisUpdates (n-1) threshold result1
                     return result2
+
+-- Do a NestedSampling iteration
+nestedSamplingIteration :: Sampler -> IO Sampler
+nestedSamplingIteration sampler = do
+    let worst = findWorstParticle sampler
+    putStr $ "Iteration " ++ (show $ iteration sampler) ++ ". "
+    putStr $ "Log likelihood = " ++ (show $ snd worst)
+    return sampler
 
