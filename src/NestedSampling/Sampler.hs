@@ -69,13 +69,25 @@ metropolisUpdates :: Int -> Double -> ([Double], Double)
                                 -> IO ([Double], Double)
 metropolisUpdates n threshold (x, logL)
     | n < 0     = undefined
-    | n == 0    = metropolisUpdate threshold (x, logL)
+    | n == 0    = do
+                    return (x, logL)
     | otherwise = do
-                    result1 <- metropolisUpdate threshold (x, logL)
-                    result2 <- metropolisUpdates (n-1) threshold result1
-                    return result2
+                    next <- metropolisUpdate threshold (x, logL)
+                    final <- metropolisUpdates (n-1) threshold next
+                    return final
 
--- Do a NestedSampling iteration
+-- Do many NestedSampling iterations
+nestedSamplingIterations :: Int -> Sampler -> IO Sampler
+nestedSamplingIterations n sampler
+    | n < 0     = undefined
+    | n == 0    = do
+                    return sampler
+    | otherwise = do
+                    next <- nestedSamplingIteration sampler
+                    final <- nestedSamplingIterations (n-1) next
+                    return final
+
+-- Do a single NestedSampling iteration
 nestedSamplingIteration :: Sampler -> IO Sampler
 nestedSamplingIteration sampler = do
     let worst = findWorstParticle sampler
