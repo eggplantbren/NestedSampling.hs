@@ -56,10 +56,9 @@ metropolisUpdate :: Double -> ([Double], Double) -> IO ([Double], Double)
 metropolisUpdate threshold (x, logL) = do
     (proposal, logH) <- perturb x
     let a = exp logH
-    uu <- rand 1
-    let u = uu !! 0
+    uu <- rand
     let llProposal = logLikelihood proposal
-    let accept = (u < a) && (llProposal > threshold)
+    let accept = (uu < a) && (llProposal > threshold)
     let newParticle = if accept then proposal else x
     let newLogL = if accept then llProposal else logL
     return (newParticle, newLogL)

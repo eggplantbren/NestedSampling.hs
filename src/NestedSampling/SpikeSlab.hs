@@ -12,13 +12,13 @@ logLikelihood params = logsumexp [100*logl1, logl2]
           z = log (2*pi) :: Double
           u = 0.01 :: Double
           v = 0.1 :: Double
-          shift = 0.03 :: Double
+          shift = 0.0 :: Double
 
 -- fromPrior is an IO action that returns a list of doubles
 -- representing a point in the parameter space
 fromPrior :: IO [Double]
 fromPrior = do
-    x <- rand 20
+    x <- randList 20
     let y = map (\a -> a - 0.5) x
     return y
 
@@ -31,11 +31,11 @@ perturb params = do
     k <- randInt $ length params
 
     -- Draw from randh
-    rh <- randh 1
+    rh <- randh
 
     -- Construct proposal vector
     let proposal = [if i==k then
-                        (perturbSingle (params !! i) (rh !! 0))
+                        (perturbSingle (params !! i) rh)
                         else (params !! i) |
                                 i <- [0..(length params - 1)]]
     return (proposal, 0.0)

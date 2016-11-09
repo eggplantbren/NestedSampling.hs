@@ -7,33 +7,53 @@ import Control.Monad
 setSeed :: Int -> IO ()
 setSeed = (setStdGen . mkStdGen)
 
--- A rand function
-rand :: Int -> IO [Double]
-rand n = replicateM n $ randomRIO (0 :: Double, 1)
+-- A rand IO action
+rand :: IO Double
+rand = randomRIO (0 :: Double, 1)
+
+-- A rand function (generates a list)
+randList :: Int -> IO [Double]
+randList n = replicateM n $ randomRIO (0 :: Double, 1)
 
 -- A random integer
 randInt :: Int -> IO Int
 randInt k
     | k < 1        = undefined
     | otherwise    = do
-                         u <- rand 1
+                         u <- rand
                          let kk = (fromIntegral k) :: Double
-                         return $ floor (kk*(u !! 0))
+                         return $ floor (kk*u)
 
 -- A randn function
-randn :: Int -> IO [Double]
-randn n = do
-              x <- rand n
-              y <- rand n
+randn :: IO Double
+randn = do
+              x <- rand
+              y <- rand
+              return $ boxMuller x y
+
+
+-- A randn function
+randnList :: Int -> IO [Double]
+randnList n = do
+              x <- randList n
+              y <- randList n
               return $ zipWith boxMuller x y
 
 -- My favourite heavy tailed distribution
-randh :: Int -> IO [Double]
-randh m = do
-              a <- randn m
-              b <- rand m
-              n <- randn m
+randhList :: Int -> IO [Double]
+randhList m = do
+              a <- randnList m
+              b <- randList m
+              n <- randnList m
               return $ map transform $ zip3 a b n
+
+-- My favourite heavy tailed distribution
+randh :: IO Double
+randh = do
+              a <- randn
+              b <- rand
+              n <- randn
+              return $ transform (a, b, n)
 
 -- Box-Muller transform used for generating normals
 boxMuller :: Double -> Double -> Double
