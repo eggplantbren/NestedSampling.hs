@@ -6,13 +6,16 @@ import NestedSampling.Utils
 
 -- Log likelihood function
 logLikelihood :: [Double] -> Double
-logLikelihood params = logsumexp [100*logl1, logl2]
-    where logl1 = -0.5 * (sum $ map (\x -> ((x-shift)/u)**2 + z) params)
-          logl2 = -0.5 * (sum $ map (\x -> (x/v)**2 + z) params)
-          z = log (2*pi) :: Double
-          u = 0.01 :: Double
-          v = 0.1 :: Double
-          shift = 0.0 :: Double
+logLikelihood params = logsumexp [logl1 + log 100.0, logl2]
+    where logl1 = (fromIntegral n)*(c - log u)
+                        - 0.5*(sum $ map (\x -> ((x - shift)/u)**2) params)
+          logl2 = (fromIntegral n)*(c - log v)
+                        - 0.5*(sum $ map (\x -> (x/v)**2) params)
+          c = -0.5*log(2*pi)    :: Double
+          u = 0.01              :: Double
+          v = 0.1               :: Double
+          shift = 0.0           :: Double
+          n = length params     :: Int
 
 -- fromPrior is an IO action that returns a list of doubles
 -- representing a point in the parameter space
