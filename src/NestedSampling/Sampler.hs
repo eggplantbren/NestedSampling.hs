@@ -1,9 +1,13 @@
+{-# LANGUAGE BangPatterns #-}
+
 module NestedSampling.Sampler where
 
 import System.IO (hFlush, stdout)
 import Control.Monad (replicateM)
 import qualified Data.Vector as V
+import qualified Data.Vector.Mutable as VM
 import qualified Data.Vector.Unboxed as U
+import qualified Data.Vector.Unboxed.Mutable as UM
 import qualified System.Random.MWC as MWC
 
 import NestedSampling.SpikeSlab
@@ -113,19 +117,22 @@ nestedSamplingIteration sampler = do
     let update = metropolisUpdates (mcmcSteps sampler) (snd worst)
     newParticle <- update particle
 
+    theParticles' <- do
+      mvec <- V.unsafeThaw (theParticles sampler)
+      VM.unsafeModify mvec (const (fst newParticle)) iWorst
+      V.freeze mvec
+
+    theLogLikelihoods' <- do
+      mvec <- U.unsafeThaw (theLogLikelihoods sampler)
+      UM.unsafeModify mvec (const (snd newParticle)) iWorst
+      U.freeze mvec
+
     -- Updated sampler
-    let sampler' = Sampler { numParticles=(numParticles sampler),
+    let !sampler' = Sampler { numParticles=(numParticles sampler),
                      mcmcSteps=(mcmcSteps sampler),
-                     theParticles=V.fromList theParticles',
-                     theLogLikelihoods=U.fromList theLogLikelihoods',
-                     iteration=(iteration sampler + 1) } where
+                     theParticles=theParticles',
+                     theLogLikelihoods=theLogLikelihoods',
+                     iteration=(iteration sampler + 1) }
 
-        theParticles' = [if i==iWorst then fst newParticle else
-                            (V.unsafeIndex (theParticles sampler) i) |
-                            i <- [0..(numParticles sampler - 1)]]
-
-        theLogLikelihoods' = [if i==iWorst then snd newParticle else
-                            (U.unsafeIndex (theLogLikelihoods sampler) i) |
-                            i <- [0..(numParticles sampler - 1)]]
-    return sampler'
+    return $! sampler'
 
