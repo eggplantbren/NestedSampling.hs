@@ -1,10 +1,11 @@
 module NestedSampling.Utils where
 
+import qualified Data.Vector.Unboxed as U
+
 -- Logsumexp
-logsumexp :: [Double] -> Double
-logsumexp a = log (sum $ map exp shifted) + xm
-                where shifted = map (\x -> x - xm) a;
-                           xm = maximum a
+logsumexp :: Double -> Double -> Double
+logsumexp a b = log (exp (a - xm) + exp (b - xm)) + xm where
+  xm = max a b
 
 -- Mod
 myMod :: Double -> Double -> Double
@@ -15,8 +16,8 @@ wrap :: Double -> (Double, Double) -> Double
 wrap x (a, b)
         | b <= a            = undefined
         | x >= a && x <= b  = x
-        | otherwise         = let min = minimum [a, b];
-                                  max = maximum [a, b] in
-                                  myMod (x - min) (max - min) + min
+        | otherwise         = let xmin = min a b
+                                  xmax = max a b in
+                                  myMod (x - xmin) (xmax - xmin) + xmin
 
 
