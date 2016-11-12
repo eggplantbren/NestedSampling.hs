@@ -10,11 +10,11 @@ import NestedSampling.RNG
 -- A sampler
 data Sampler = Sampler
                {
-                   numParticles :: Int,
-                   mcmcSteps :: Int,
-                   theParticles :: [(V.Vector Double)],
-                   theLogLikelihoods :: [Double],
-                   iteration :: Int
+                   numParticles      :: {-# UNPACK #-} !Int,
+                   mcmcSteps         :: {-# UNPACK #-} !Int,
+                   theParticles      :: ![V.Vector Double],
+                   theLogLikelihoods :: ![Double],
+                   iteration         :: {-# UNPACK #-}!Int
                } deriving Show
 
 -- Choose a particle to copy, that isn't number k
