@@ -1,15 +1,16 @@
-import NestedSampling.Sampler
+import NestedSampling.RNG
+import NestedSampling.SpikeSlab
+import Control.Monad (replicateM)
 
 main :: IO ()
 main = do
-    -- Set the seed
-    -- setSeed 123
+    params <- fromPrior
 
-    -- Create and initialise sampler
-    sampler <- generateSampler 100 1000
+    print params
+    result <- perturb params
+    let params' = fst result
 
-    -- Do an NS iteration
-    sampler' <- nestedSamplingIterations 10000 sampler
+    print params'
 
     return ()
 
