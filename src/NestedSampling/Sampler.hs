@@ -67,32 +67,33 @@ metropolisUpdate threshold (x, logL) = do
     uu <- rand
     let llProposal = logLikelihood proposal
     let accept = (uu < a) && (llProposal > threshold)
-    let newParticle = if accept then proposal else x
-    let newLogL = if accept then llProposal else logL
-    return (newParticle, newLogL)
+    return $
+      if   accept
+      then (proposal, llProposal)
+      else (x, logL)
 
 -- Function to do many metropolis updates
 metropolisUpdates :: Int -> Double -> ((U.Vector Double), Double)
                                 -> IO ((U.Vector Double), Double)
-metropolisUpdates n threshold (x, logL)
+metropolisUpdates = loop where
+  loop n threshold (x, logL)
     | n < 0     = undefined
-    | n == 0    = do
-                    return (x, logL)
+    | n == 0    = return (x, logL)
     | otherwise = do
-                    next <- metropolisUpdate threshold (x, logL)
-                    final <- metropolisUpdates (n-1) threshold next
-                    return final
+                    next  <- metropolisUpdate threshold (x, logL)
+                    loop (n-1) threshold next
+{-# INLINE metropolisUpdates #-}
 
 -- Do many NestedSampling iterations
 nestedSamplingIterations :: Int -> Sampler -> IO Sampler
-nestedSamplingIterations n sampler
+nestedSamplingIterations = loop where
+  loop n sampler
     | n < 0     = undefined
-    | n == 0    = do
-                    return sampler
+    | n == 0    = return sampler
     | otherwise = do
                     next <- nestedSamplingIteration sampler
-                    final <- nestedSamplingIterations (n-1) next
-                    return final
+                    loop (n-1) next
+{-# INLINE nestedSamplingIterations #-}
 
 -- Do a single NestedSampling iteration
 nestedSamplingIteration :: Sampler -> IO Sampler
