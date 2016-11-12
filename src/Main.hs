@@ -9,7 +9,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
     sampler <- generateSampler 10 1000 gen
 
     -- Do 100 NS iterations
-    nestedSamplingIterations 10 sampler gen
+    nestedSamplingIterations 10000 sampler gen
 
     return ()
 
