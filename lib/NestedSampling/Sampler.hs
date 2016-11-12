@@ -4,10 +4,12 @@ module NestedSampling.Sampler where
 
 import System.IO (hFlush, stdout)
 import Control.Monad (replicateM)
+import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
 import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
+import System.Random.MWC (Gen)
 import qualified System.Random.MWC as MWC
 
 import NestedSampling.SpikeSlab
@@ -33,15 +35,15 @@ chooseCopy k n = MWC.withSystemRandom . MWC.asGenIO $ loop where
     else return index
 
 -- Generate a sampler with n particles and m mcmc steps
-generateSampler :: Int -> Int -> IO Sampler
-generateSampler n m
+generateSampler :: Int -> Int -> Gen RealWorld -> IO Sampler
+generateSampler n m gen
     | n <= 1    = undefined
     | m <= 0    = undefined
     | otherwise = do
         putStr ("Generating " ++ (show n) ++ " particles\
                         \ from the prior...")
         hFlush stdout
-        theParticles <- V.replicateM n fromPrior
+        theParticles <- V.replicateM n (fromPrior gen)
         let lls = V.map logLikelihood theParticles
         putStrLn "done."
         return Sampler {numParticles=n, mcmcSteps=m,
@@ -63,12 +65,12 @@ findWorstParticle sampler = (idx, U.unsafeIndex lls idx)
 -- Input: A vector of parameters and a loglikelihood threshold
 -- Output: An IO action which would return a new vector of parameters
 -- and its log likelihood
-metropolisUpdate :: Double -> ((U.Vector Double), Double)
+metropolisUpdate :: Double -> ((U.Vector Double), Double) -> Gen RealWorld
                                 -> IO ((U.Vector Double), Double)
-metropolisUpdate threshold (x, logL) = do
-    (proposal, logH) <- perturb x
+metropolisUpdate threshold (x, logL) gen = do
+    (proposal, logH) <- perturb x gen
     let a = exp logH
-    uu <- rand
+    uu <- rand gen
     let llProposal = logLikelihood proposal
     let accept = (uu < a) && (llProposal > threshold)
     return $
@@ -77,31 +79,31 @@ metropolisUpdate threshold (x, logL) = do
       else (x, logL)
 
 -- Function to do many metropolis updates
-metropolisUpdates :: Int -> Double -> ((U.Vector Double), Double)
+metropolisUpdates :: Int -> Double -> ((U.Vector Double), Double) -> Gen RealWorld
                                 -> IO ((U.Vector Double), Double)
 metropolisUpdates = loop where
-  loop n threshold (x, logL)
+  loop n threshold (x, logL) gen
     | n < 0     = undefined
     | n == 0    = return (x, logL)
     | otherwise = do
-                    next  <- metropolisUpdate threshold (x, logL)
-                    loop (n-1) threshold next
+                    next  <- metropolisUpdate threshold (x, logL) gen
+                    loop (n-1) threshold next gen
 {-# INLINE metropolisUpdates #-}
 
 -- Do many NestedSampling iterations
-nestedSamplingIterations :: Int -> Sampler -> IO Sampler
+nestedSamplingIterations :: Int -> Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIterations = loop where
-  loop n sampler
+  loop n sampler gen
     | n < 0     = undefined
     | n == 0    = return sampler
     | otherwise = do
-                    next <- nestedSamplingIteration sampler
-                    loop (n-1) next
+                    next <- nestedSamplingIteration sampler gen
+                    loop (n-1) next gen
 {-# INLINE nestedSamplingIterations #-}
 
 -- Do a single NestedSampling iteration
-nestedSamplingIteration :: Sampler -> IO Sampler
-nestedSamplingIteration sampler = do
+nestedSamplingIteration :: Sampler -> Gen RealWorld -> IO Sampler
+nestedSamplingIteration sampler gen = do
     let worst = findWorstParticle sampler
     putStr $ "Iteration " ++ (show $ iteration sampler) ++ ". "
     putStrLn $ "Log likelihood = " ++ (show $ snd worst) ++ "."
@@ -115,7 +117,7 @@ nestedSamplingIteration sampler = do
 
     -- Do Metropolis
     let update = metropolisUpdates (mcmcSteps sampler) (snd worst)
-    newParticle <- update particle
+    newParticle <- update particle gen
 
     theParticles' <- do
       mvec <- V.unsafeThaw (theParticles sampler)

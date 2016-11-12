@@ -1,9 +1,11 @@
 module NestedSampling.SpikeSlab where
 
 import Control.Monad (replicateM)
+import Control.Monad.Primitive (RealWorld)
 import Data.Vector.Unboxed as U
 import NestedSampling.RNG
 import NestedSampling.Utils
+import System.Random.MWC (Gen)
 
 -- The SpikeSlab model --
 
@@ -22,21 +24,21 @@ logLikelihood params = logsumexp (logl1 + log 100.0) logl2
 
 -- fromPrior is an IO action that returns a vector of doubles
 -- representing a point in the parameter space
-fromPrior :: IO (U.Vector Double)
-fromPrior = do
-    x <- U.replicateM 20 rand
+fromPrior :: Gen RealWorld -> IO (U.Vector Double)
+fromPrior gen = do
+    x <- U.replicateM 20 (rand gen)
     return $ U.map (\a -> a - 0.5) x
 
 -- Perturb takes a list of doubles as input
 -- and returns an IO action that returns the
 -- perturbed particle and the logH value.
-perturb :: (U.Vector Double) -> IO ((U.Vector Double), Double)
-perturb params = do
+perturb :: (U.Vector Double) -> Gen RealWorld -> IO ((U.Vector Double), Double)
+perturb params gen = do
     -- Choose a parameter to perturb
-    k <- randInt $ U.length params
+    k <- randInt (U.length params) gen
 
     -- Draw from randh
-    rh <- randh
+    rh <- randh gen
 
     let params' = U.generate (U.length params) (\i ->
           if   i == k

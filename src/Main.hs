@@ -1,14 +1,15 @@
 import NestedSampling.RNG
 import NestedSampling.Sampler
 import Control.Monad (replicateM)
+import System.Random.MWC
 
 main :: IO ()
-main = do
+main = withSystemRandom . asGenIO $ \gen -> do
     -- Create a sampler
-    sampler <- generateSampler 10 1000
+    sampler <- generateSampler 10 1000 gen
 
     -- Do 100 NS iterations
-    nestedSamplingIterations 10 sampler
+    nestedSamplingIterations 10 sampler gen
 
     return ()
 
