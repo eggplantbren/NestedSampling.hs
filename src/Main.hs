@@ -8,7 +8,7 @@ main = do
     sampler <- generateSampler 10 1000
 
     -- Do 100 NS iterations
-    nestedSamplingIterations 1000 sampler
+    nestedSamplingIterations 10 sampler
 
     return ()
 
