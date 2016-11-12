@@ -2,7 +2,9 @@ module NestedSampling.Sampler where
 
 import System.IO (hFlush, stdout)
 import Control.Monad (replicateM)
-import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as U
+import qualified System.Random.MWC as MWC
 
 import NestedSampling.SpikeSlab
 import NestedSampling.RNG
@@ -12,8 +14,8 @@ data Sampler = Sampler
                {
                    numParticles      :: {-# UNPACK #-} !Int,
                    mcmcSteps         :: {-# UNPACK #-} !Int,
-                   theParticles      :: ![V.Vector Double],
-                   theLogLikelihoods :: ![Double],
+                   theParticles      :: !(V.Vector (U.Vector Double)),
+                   theLogLikelihoods :: !(U.Vector Double),
                    iteration         :: {-# UNPACK #-}!Int
                } deriving Show
 
@@ -33,28 +35,28 @@ generateSampler n m
         putStr ("Generating " ++ (show n) ++ " particles\
                         \ from the prior...")
         hFlush stdout
-        theParticles <- replicateM n fromPrior
-        let lls = map logLikelihood theParticles
+        theParticles <- V.replicateM n fromPrior
+        let lls = V.map logLikelihood theParticles
         putStrLn "done."
         return Sampler {numParticles=n, mcmcSteps=m,
                         theParticles=theParticles,
-                        theLogLikelihoods=lls, iteration=1}
+                        theLogLikelihoods=U.convert lls, iteration=1}
 
 -- Find the index and the log likelihood value of the worst particle
 findWorstParticle :: Sampler -> (Int, Double)
 findWorstParticle sampler = (vec !! 0, worst)
     where
         vec = [i | i <- [0..(numParticles sampler - 1)], (l i) == worst]
-        l i = (lls) !! i
-        worst = minimum lls
+        l i = U.unsafeIndex lls i
+        worst = U.minimum lls
         lls = theLogLikelihoods sampler
 
 -- Function to do a single metropolis update
 -- Input: A vector of parameters and a loglikelihood threshold
 -- Output: An IO action which would return a new vector of parameters
 -- and its log likelihood
-metropolisUpdate :: Double -> ((V.Vector Double), Double)
-                                -> IO ((V.Vector Double), Double)
+metropolisUpdate :: Double -> ((U.Vector Double), Double)
+                                -> IO ((U.Vector Double), Double)
 metropolisUpdate threshold (x, logL) = do
     (proposal, logH) <- perturb x
     let a = exp logH
@@ -66,8 +68,8 @@ metropolisUpdate threshold (x, logL) = do
     return (newParticle, newLogL)
 
 -- Function to do many metropolis updates
-metropolisUpdates :: Int -> Double -> ((V.Vector Double), Double)
-                                -> IO ((V.Vector Double), Double)
+metropolisUpdates :: Int -> Double -> ((U.Vector Double), Double)
+                                -> IO ((U.Vector Double), Double)
 metropolisUpdates n threshold (x, logL)
     | n < 0     = undefined
     | n == 0    = do
@@ -99,8 +101,8 @@ nestedSamplingIteration sampler = do
     copy <- chooseCopy iWorst n
 
     -- Copy a surviving particle
-    let particle = ((theParticles sampler) !! copy,
-                        (theLogLikelihoods sampler) !! copy)
+    let particle = (V.unsafeIndex (theParticles sampler) copy,
+                        U.unsafeIndex (theLogLikelihoods sampler) copy)
 
     -- Do Metropolis
     let update = metropolisUpdates (mcmcSteps sampler) (snd worst)
@@ -109,14 +111,16 @@ nestedSamplingIteration sampler = do
     -- Updated sampler
     let sampler' = Sampler { numParticles=(numParticles sampler),
                      mcmcSteps=(mcmcSteps sampler),
-                     theParticles=theParticles',
-                     theLogLikelihoods=theLogLikelihoods',
+                     theParticles=V.fromList theParticles',
+                     theLogLikelihoods=U.fromList theLogLikelihoods',
                      iteration=(iteration sampler + 1) } where
+
         theParticles' = [if i==iWorst then fst newParticle else
-                            ((theParticles sampler) !! i) |
+                            (V.unsafeIndex (theParticles sampler) i) |
                             i <- [0..(numParticles sampler - 1)]]
+
         theLogLikelihoods' = [if i==iWorst then snd newParticle else
-                            ((theLogLikelihoods sampler) !! i) |
+                            (U.unsafeIndex (theLogLikelihoods sampler) i) |
                             i <- [0..(numParticles sampler - 1)]]
     return sampler'
 
