@@ -1,66 +1,62 @@
 module NestedSampling.RNG where
 
-import System.Random
+import System.Random.MWC
+import Data.Vector.Unboxed as U
+import System.Random.MWC.Distributions
 import Control.Monad
 
--- To set the seed
-setSeed :: Int -> IO ()
-setSeed = (setStdGen . mkStdGen)
-
--- A rand IO action
+-- An IO action for generating from U(0, 1)
 rand :: IO Double
-rand = randomRIO (0 :: Double, 1)
+rand = withSystemRandom . asGenIO $ \gen -> do
+          x <- uniform gen :: IO Double
+          return x
 
--- A rand function (generates a list)
-randList :: Int -> IO [Double]
-randList n = replicateM n $ randomRIO (0 :: Double, 1)
-
--- A random integer
+-- An IO action for generating from U({0, 1, ..., n-1})
 randInt :: Int -> IO Int
-randInt k
-    | k < 1        = undefined
-    | otherwise    = do
-                         u <- rand
-                         let kk = (fromIntegral k) :: Double
-                         return $ floor (kk*u)
+randInt n
+    | n < 1     = undefined
+    | otherwise = do
+                    u <- rand
+                    let nn = (fromIntegral n) :: Double
+                    return $ floor (nn*u)
 
--- A randn function
+-- An IO action for generating from N(0, 1)
 randn :: IO Double
-randn = do
-              x <- rand
-              y <- rand
-              return $ boxMuller x y
-
-
--- A randn function
-randnList :: Int -> IO [Double]
-randnList n = do
-              x <- randList n
-              y <- randList n
-              return $ zipWith boxMuller x y
-
--- My favourite heavy tailed distribution
-randhList :: Int -> IO [Double]
-randhList m = do
-              a <- randnList m
-              b <- randList m
-              n <- randnList m
-              return $ map transform $ zip3 a b n
+randn = withSystemRandom . asGenIO $ \gen -> do
+          x <- standard gen :: IO Double
+          return x
 
 -- My favourite heavy tailed distribution
 randh :: IO Double
 randh = do
-              a <- randn
-              b <- rand
-              n <- randn
-              return $ transform (a, b, n)
+            a <- randn
+            b <- rand
+            n <- randn
+            return $ transform (a, b, n)
 
--- Box-Muller transform used for generating normals
-boxMuller :: Double -> Double -> Double
-boxMuller u1 u2 = r*(cos theta)
-    where
-        r = sqrt (-(2*log u1))
-        theta = 2*pi*u2
+---- A random integer
+--randInt :: Int -> IO Int
+--randInt k
+--    | k < 1        = undefined
+--    | otherwise    = do
+--                         u <- rand 1
+--                         let kk = (fromIntegral k) :: Double
+--                         return $ floor (kk*(u !! 0))
+
+---- A randn function
+--randn :: Int -> IO [Double]
+--randn n = do
+--              x <- rand n
+--              y <- rand n
+--              return $ zipWith boxMuller x y
+
+
+---- Box-Muller transform used for generating normals
+--boxMuller :: Double -> Double -> Double
+--boxMuller u1 u2 = r*(cos theta)
+--    where
+--        r = sqrt (-(2*log u1))
+--        theta = 2*pi*u2
 
 -- Function that transforms (a, b, n) -> x
 -- for randh
