@@ -26,8 +26,8 @@ data Sampler = Sampler
                } deriving Show
 
 -- | Choose a particle to copy, that isn't number k.
-chooseCopy :: Int -> Int -> IO Int
-chooseCopy k n = MWC.withSystemRandom . MWC.asGenIO $ loop where
+chooseCopy :: Int -> Int -> Gen RealWorld -> IO Int
+chooseCopy k n = loop where
   loop prng = do
     index <- MWC.uniformR (0, n - 1) prng
     if   index == k
@@ -109,7 +109,7 @@ nestedSamplingIteration sampler gen = do
     putStrLn $ "Log likelihood = " ++ (show $ snd worst) ++ "."
     let iWorst = fst worst
     let n = numParticles sampler
-    copy <- chooseCopy iWorst n
+    copy <- chooseCopy iWorst n gen
 
     -- Copy a surviving particle
     let particle = (V.unsafeIndex (theParticles sampler) copy,
