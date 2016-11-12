@@ -19,12 +19,14 @@ data Sampler = Sampler
                    iteration         :: {-# UNPACK #-}!Int
                } deriving Show
 
--- Choose a particle to copy, that isn't number k
+-- | Choose a particle to copy, that isn't number k.
 chooseCopy :: Int -> Int -> IO Int
-chooseCopy k n = do
-    let ii = [i | i <- [0..(n-1)], i /= k]
-    index <- randInt $ length ii
-    return $ ii !! index
+chooseCopy k n = MWC.withSystemRandom . MWC.asGenIO $ loop where
+  loop prng = do
+    index <- MWC.uniformR (0, n - 1) prng
+    if   index == k
+    then loop prng
+    else return index
 
 -- Generate a sampler with n particles and m mcmc steps
 generateSampler :: Int -> Int -> IO Sampler
