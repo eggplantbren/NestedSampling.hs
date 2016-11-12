@@ -45,12 +45,14 @@ generateSampler n m
                         theLogLikelihoods=U.convert lls, iteration=1}
 
 -- Find the index and the log likelihood value of the worst particle
+--
+-- NB (jtobin):
+--   It may be better to use something like a heap so that we can access the
+--   min element in O(1).
 findWorstParticle :: Sampler -> (Int, Double)
-findWorstParticle sampler = (vec !! 0, worst)
+findWorstParticle sampler = (idx, U.unsafeIndex lls idx)
     where
-        vec = [i | i <- [0..(numParticles sampler - 1)], (l i) == worst]
-        l i = U.unsafeIndex lls i
-        worst = U.minimum lls
+        idx = U.minIndex lls
         lls = theLogLikelihoods sampler
 
 -- Function to do a single metropolis update
