@@ -1,0 +1,38 @@
+name:                NestedSampling-hs
+version:             0.1.0
+synopsis:            Classic Nested Sampling.
+license:             MIT
+license-file:        LICENSE
+author:              Brendon J. Brewer
+maintainer:          bj.brewer@auckland.ac.nz
+category:            Math
+build-type:          Simple
+cabal-version:       >=1.10
+description:
+  Eventually, this will be a Haskell implementation of classic Nested Sampling.
+  Warning: I am a beginner at this language so don't expect much for a while.
+
+library
+  hs-source-dirs:      lib
+  default-language:    Haskell2010
+  exposed-modules:
+      NestedSampling.RNG
+    , NestedSampling.Sampler
+    , NestedSampling.SpikeSlab
+    , NestedSampling.Utils
+  build-depends:
+      base >= 4 && < 6
+    , mwc-random
+    , primitive
+    , vector
+
+executable ns-example
+  hs-source-dirs:    src
+  Main-is:           Main.hs
+  default-language:  Haskell2010
+  ghc-options:
+    -O2
+  build-depends:
+      base
+    , NestedSampling-hs
+    , mwc-random
