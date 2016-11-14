@@ -14,6 +14,7 @@ import qualified System.Random.MWC as MWC
 
 import NestedSampling.SpikeSlab
 import NestedSampling.RNG
+import NestedSampling.Utils
 
 -- A sampler
 data Sampler = Sampler
@@ -22,7 +23,8 @@ data Sampler = Sampler
                    mcmcSteps         :: {-# UNPACK #-} !Int,
                    theParticles      :: !(V.Vector (U.Vector Double)),
                    theLogLikelihoods :: !(U.Vector Double),
-                   iteration         :: {-# UNPACK #-}!Int
+                   iteration         :: {-# UNPACK #-} !Int,
+                   logZ              :: {-# UNPACK #-} !Double
                } deriving Show
 
 -- | Choose a particle to copy, that isn't number k.
@@ -48,7 +50,8 @@ generateSampler n m gen
         putStrLn "done."
         return Sampler {numParticles=n, mcmcSteps=m,
                         theParticles=theParticles,
-                        theLogLikelihoods=U.convert lls, iteration=1}
+                        theLogLikelihoods=U.convert lls, iteration=1,
+                        logZ = -1E300}
 
 -- Find the index and the log likelihood value of the worst particle
 --
@@ -106,10 +109,18 @@ nestedSamplingIteration :: Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIteration sampler gen = do
     let worst = findWorstParticle sampler
     putStr $ "Iteration " ++ (show $ iteration sampler) ++ ". "
-    putStrLn $ "Log likelihood = " ++ (show $ snd worst) ++ "."
+    putStr $ "log(L) = " ++ (show $ snd worst) ++ ". "
     let iWorst = fst worst
     let n = numParticles sampler
     copy <- chooseCopy iWorst n gen
+
+    -- Approximate log prior weight of the worst particle
+    let logWeight = -(k/n) + log (exp (1.0/n) - 1.0) where
+          k = fromIntegral (iteration sampler)
+          n = fromIntegral (numParticles sampler)
+    let logZ' = logsumexp (logZ sampler) (logWeight + logLike) where
+          logLike = snd worst
+    putStrLn $ "log(Z) = " ++ (show logZ') ++ "."
 
     -- Copy a surviving particle
     let particle = (V.unsafeIndex (theParticles sampler) copy,
@@ -134,7 +145,8 @@ nestedSamplingIteration sampler gen = do
                      mcmcSteps=(mcmcSteps sampler),
                      theParticles=theParticles',
                      theLogLikelihoods=theLogLikelihoods',
-                     iteration=(iteration sampler + 1) }
+                     iteration=(iteration sampler + 1),
+                     logZ = logZ'}
 
     return $! sampler'
 
