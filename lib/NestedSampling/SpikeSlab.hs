@@ -3,6 +3,7 @@ module NestedSampling.SpikeSlab where
 import Control.Monad (replicateM)
 import Control.Monad.Primitive (RealWorld)
 import Data.Vector.Unboxed as U
+import qualified Data.Vector.Unboxed.Mutable as UM
 import NestedSampling.RNG
 import NestedSampling.Utils
 import System.Random.MWC (Gen)
@@ -32,7 +33,7 @@ fromPrior gen = do
 -- Perturb takes a list of doubles as input
 -- and returns an IO action that returns the
 -- perturbed particle and the logH value.
-perturb :: (U.Vector Double) -> Gen RealWorld -> IO ((U.Vector Double), Double)
+perturb :: U.Vector Double -> Gen RealWorld -> IO (U.Vector Double, Double)
 perturb params gen = do
     -- Choose a parameter to perturb
     k <- randInt (U.length params) gen
@@ -40,10 +41,14 @@ perturb params gen = do
     -- Draw from randh
     rh <- randh gen
 
-    let params' = U.generate (U.length params) (\i ->
-          if   i == k
-          then perturbSingle (params ! i) rh
-          else params ! i)
+    -- NB (jtobin):
+    --   note that we can't use unsafeThaw here as the params vector could
+    --   still be used elsewhere (i.e. in the non-accepting branch of
+    --   metropolisUpdate).
+    params' <- do
+      mvec <- U.thaw params
+      UM.unsafeModify mvec (`perturbSingle` rh) k
+      U.unsafeFreeze mvec
 
     return (params', 0.0)
 

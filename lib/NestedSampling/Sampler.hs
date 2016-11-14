@@ -133,12 +133,12 @@ nestedSamplingIteration sampler gen = do
     theParticles' <- do
       mvec <- V.unsafeThaw (theParticles sampler)
       VM.unsafeModify mvec (const (fst newParticle)) iWorst
-      V.freeze mvec
+      V.unsafeFreeze mvec
 
     theLogLikelihoods' <- do
       mvec <- U.unsafeThaw (theLogLikelihoods sampler)
       UM.unsafeModify mvec (const (snd newParticle)) iWorst
-      U.freeze mvec
+      U.unsafeFreeze mvec
 
     -- Updated sampler
     let !sampler' = Sampler { numParticles=(numParticles sampler),
