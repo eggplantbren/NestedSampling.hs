@@ -2,9 +2,10 @@
 
 module NestedSampling.Sampler where
 
-import System.IO (hFlush, stdout)
+import System.IO
 import Control.Monad (replicateM)
 import Control.Monad.Primitive (RealWorld)
+import Data.List
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
 import qualified Data.Vector.Unboxed as U
@@ -104,6 +105,24 @@ nestedSamplingIterations = loop where
                     loop (n-1) next gen
 {-# INLINE nestedSamplingIterations #-}
 
+-- Save a particle to disk
+writeToFile :: Bool -> (Double, Double) -> U.Vector Double -> IO ()
+writeToFile append (logw, logl) particle = do
+    -- Open the file
+    sampleInfo <- openFile "sample_info.txt"
+                        (if append then AppendMode else WriteMode)
+
+    hPutStrLn sampleInfo $ (show logw) ++ " " ++ (show logl)
+    hClose sampleInfo
+
+    -- Open the file
+    sample <- openFile "sample.txt"
+                        (if append then AppendMode else WriteMode)
+
+    let particle' = U.toList particle
+    hPutStrLn sample $ foldl' (++) [] $ [show x ++ " " | x <- particle']        
+    hClose sample
+
 -- Do a single NestedSampling iteration
 nestedSamplingIteration :: Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIteration sampler gen = do
@@ -121,6 +140,11 @@ nestedSamplingIteration sampler gen = do
     let logZ' = logsumexp (logZ sampler) (logWeight + logLike) where
           logLike = snd worst
     putStrLn $ "log(Z) = " ++ (show logZ') ++ "."
+
+    -- Write to file
+    writeToFile (iteration sampler /= 1) (logWeight, snd worst)
+                        $ (theParticles sampler) V.! iWorst
+
 
     -- Copy a surviving particle
     let particle = (V.unsafeIndex (theParticles sampler) copy,
