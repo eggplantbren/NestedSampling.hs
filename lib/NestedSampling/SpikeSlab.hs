@@ -20,7 +20,7 @@ logLikelihood params = logsumexp (logl1 + log 100.0) logl2
           c = -0.5*log(2*pi)    :: Double
           u = 0.01              :: Double
           v = 0.1               :: Double
-          shift = 0.0           :: Double
+          shift = 0.031         :: Double
           n = U.length params   :: Int
 
 -- fromPrior is an IO action that returns a vector of doubles
