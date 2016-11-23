@@ -3,7 +3,7 @@
 module NestedSampling.Sampler where
 
 import System.IO
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, when)
 import Control.Monad.Primitive (RealWorld)
 import Data.List
 import qualified Data.Vector as V
@@ -126,23 +126,36 @@ writeToFile append (logw, logl) particle = do
 -- Do a single NestedSampling iteration
 nestedSamplingIteration :: Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIteration sampler gen = do
+    let it = iteration sampler
+    let logX = negate $ (fromIntegral it) / (fromIntegral (numParticles sampler)) :: Double
     let worst = findWorstParticle sampler
-    putStr $ "Iteration " ++ (show $ iteration sampler) ++ ". "
-    putStr $ "log(L) = " ++ (show $ snd worst) ++ ". "
+
     let iWorst = fst worst
     let n = numParticles sampler
     copy <- chooseCopy iWorst n gen
 
     -- Approximate log prior weight of the worst particle
     let logWeight = -(k/n) + log (exp (1.0/n) - 1.0) where
-          k = fromIntegral (iteration sampler)
+          k = fromIntegral it
           n = fromIntegral (numParticles sampler)
     let logZ' = logsumexp (logZ sampler) (logWeight + logLike) where
           logLike = snd worst
-    putStrLn $ "log(Z) = " ++ (show logZ') ++ "."
+
+    -- Print some stuff from time to time
+    let display = it `mod` (numParticles sampler) == 0 :: Bool
+    if display then do
+        putStr $ "Iteration " ++ (show it) ++ ". "
+        putStr $ "log(X) = " ++ (show logX) ++ ". "
+        putStrLn $ "log(L) = " ++ (show $ snd worst) ++ ". "
+        putStrLn $ "log(Z) = " ++ (show logZ') ++ ".\n"
+
+    else return ()
+--        putStr $ "log(L) = " ++ (show $ snd worst) ++ ". " }
+--        when (it == 1)
+
 
     -- Write to file
-    writeToFile (iteration sampler /= 1) (logWeight, snd worst)
+    writeToFile (it /= 1) (logWeight, snd worst)
                         $ (theParticles sampler) V.! iWorst
 
 
@@ -169,7 +182,7 @@ nestedSamplingIteration sampler gen = do
                      mcmcSteps=(mcmcSteps sampler),
                      theParticles=theParticles',
                      theLogLikelihoods=theLogLikelihoods',
-                     iteration=(iteration sampler + 1),
+                     iteration=(it + 1),
                      logZ = logZ'}
 
     return $! sampler'
