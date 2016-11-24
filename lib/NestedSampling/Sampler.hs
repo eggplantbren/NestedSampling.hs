@@ -143,9 +143,9 @@ nestedSamplingIteration sampler gen = do
           logLike = snd worst
     let logZ' = logsumexp (logZ sampler) logPost 
 
-
-    let information' = information sampler
---    let information = exp 
+    let information' = exp (logPost - logZ') * (snd worst)
+                       + exp (logZ sampler - logZ') *
+                          (information sampler + logZ sampler) - logZ'
 
     --H = exp(Obj[worst].logWt - logZnew) * Obj[worst].logL
     -- + exp(logZ - logZnew) * (H + logZ) - logZnew;
@@ -154,10 +154,11 @@ nestedSamplingIteration sampler gen = do
     -- Print some stuff from time to time
     let display = it `mod` (numParticles sampler) == 0 :: Bool
     if display then do
-        putStr $ "Iteration " ++ (show it) ++ ". "
-        putStr $ "log(X) = " ++ (show logX) ++ ". "
-        putStrLn $ "log(L) = " ++ (show $ snd worst) ++ ". "
-        putStrLn $ "log(Z) = " ++ (show logZ') ++ ".\n"
+        putStr   $ "Iteration " ++ (show it) ++ ". "
+        putStr   $ "ln(X) = " ++ (show logX) ++ ". "
+        putStrLn $ "ln(L) = " ++ (show $ snd worst) ++ "."
+        putStr   $ "ln(Z) = " ++ (show logZ') ++ ", "
+        putStrLn $ "H = " ++ (show information') ++ " nats.\n"
 
     else return ()
 --        putStr $ "log(L) = " ++ (show $ snd worst) ++ ". " }
