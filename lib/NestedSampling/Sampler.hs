@@ -25,7 +25,8 @@ data Sampler = Sampler
                    theParticles      :: !(V.Vector (U.Vector Double)),
                    theLogLikelihoods :: !(U.Vector Double),
                    iteration         :: {-# UNPACK #-} !Int,
-                   logZ              :: {-# UNPACK #-} !Double
+                   logZ              :: {-# UNPACK #-} !Double,
+                   information       :: {-# UNPACK #-} !Double
                } deriving Show
 
 -- | Choose a particle to copy, that isn't number k.
@@ -52,7 +53,7 @@ generateSampler n m gen
         return Sampler {numParticles=n, mcmcSteps=m,
                         theParticles=theParticles,
                         theLogLikelihoods=U.convert lls, iteration=1,
-                        logZ = -1E300}
+                        logZ = -1E300, information=0.0}
 
 -- Find the index and the log likelihood value of the worst particle
 --
@@ -135,11 +136,20 @@ nestedSamplingIteration sampler gen = do
     copy <- chooseCopy iWorst n gen
 
     -- Approximate log prior weight of the worst particle
-    let logWeight = -(k/n) + log (exp (1.0/n) - 1.0) where
+    let logPriorWeight = -(k/n) + log (exp (1.0/n) - 1.0) where
           k = fromIntegral it
           n = fromIntegral (numParticles sampler)
-    let logZ' = logsumexp (logZ sampler) (logWeight + logLike) where
+    let logPost = logPriorWeight + logLike where
           logLike = snd worst
+    let logZ' = logsumexp (logZ sampler) logPost 
+
+
+    let information' = information sampler
+--    let information = exp 
+
+    --H = exp(Obj[worst].logWt - logZnew) * Obj[worst].logL
+    -- + exp(logZ - logZnew) * (H + logZ) - logZnew;
+    --logZ = logZnew;
 
     -- Print some stuff from time to time
     let display = it `mod` (numParticles sampler) == 0 :: Bool
@@ -155,7 +165,7 @@ nestedSamplingIteration sampler gen = do
 
 
     -- Write to file
-    writeToFile (it /= 1) (logWeight, snd worst)
+    writeToFile (it /= 1) (logPriorWeight, snd worst)
                         $ (theParticles sampler) V.! iWorst
 
 
@@ -183,7 +193,8 @@ nestedSamplingIteration sampler gen = do
                      theParticles=theParticles',
                      theLogLikelihoods=theLogLikelihoods',
                      iteration=(it + 1),
-                     logZ = logZ'}
+                     logZ=logZ',
+                     information=information'}
 
     return $! sampler'
 
