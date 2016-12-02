@@ -35,9 +35,7 @@ fromPrior gen = do
 perturb :: U.Vector Double -> Gen RealWorld -> IO (U.Vector Double, Double)
 perturb params gen = do
     -- Choose a parameter to perturb
-    k <- uniformR (0, U.length params - 1) gen
-
-    -- Draw from randh
+    k  <- uniformR (0, U.length params - 1) gen
     rh <- randh gen
 
     -- NB (jtobin):
@@ -59,15 +57,12 @@ perturbSingle x rh = (`wrap` (-0.5, 0.5)) $ x + rh
 -- My favourite heavy tailed distribution
 randh :: Gen RealWorld -> IO Double
 randh gen = do
-            a <- standard gen
-            b <- uniform gen
-            n <- standard gen
-            return $! transform a b n
-
--- Function that transforms (a, b, n) -> x
--- for randh
-transform :: Double -> Double -> Double -> Double
-transform a b n =
-  let t = a/sqrt (- (log b))
-  in  10.0**(1.5 - 3.0*(abs t))*n
+    a <- standard gen
+    b <- uniform gen
+    n <- standard gen
+    return $! transform a b n
+  where
+    transform a b n =
+      let t = a/sqrt (- (log b))
+      in  10.0**(1.5 - 3.0*(abs t))*n
 
