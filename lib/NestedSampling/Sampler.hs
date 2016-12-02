@@ -38,20 +38,23 @@ chooseCopy k n = loop where
 
 -- Generate a sampler with n particles and m mcmc steps
 generateSampler :: Int -> Int -> Gen RealWorld -> IO Sampler
-generateSampler n m gen
-    | n <= 1    = undefined
-    | m <= 0    = undefined
-    | otherwise = do
-        putStr ("Generating " ++ (show n) ++ " particles\
-                        \ from the prior...")
-        hFlush stdout
-        particles <- V.replicateM n (fromPrior gen)
-        let lls = V.map logLikelihood particles
-        putStrLn "done."
-        return Sampler {numParticles=n, mcmcSteps=m,
-                        theParticles=particles,
-                        theLogLikelihoods=U.convert lls, iteration=1,
-                        logZ = -1E300, information=0.0}
+generateSampler n m gen = do
+    putStrLn $ "Generating " ++ show nv ++ " particles from the prior..."
+    particles <- V.replicateM nv (fromPrior gen)
+    let lls = V.map logLikelihood particles
+    putStrLn "done."
+    return Sampler {
+        numParticles      = nv
+      , mcmcSteps         = mv
+      , theParticles      = particles
+      , theLogLikelihoods = U.convert lls
+      , iteration         = 1
+      , logZ              = -1E300
+      , information       = 0.0
+      }
+  where
+    nv = if n <= 1 then 1 else n
+    mv = if m <= 0 then 0 else m
 
 -- Find the index and the log likelihood value of the worst particle
 --
@@ -86,8 +89,7 @@ metropolisUpdates :: Int -> Double -> ((U.Vector Double), Double) -> Gen RealWor
                                 -> IO ((U.Vector Double), Double)
 metropolisUpdates = loop where
   loop n threshold (x, logL) gen
-    | n < 0     = undefined
-    | n == 0    = return (x, logL)
+    | n <= 0    = return (x, logL)
     | otherwise = do
                     next  <- metropolisUpdate threshold (x, logL) gen
                     loop (n-1) threshold next gen
@@ -97,8 +99,7 @@ metropolisUpdates = loop where
 nestedSamplingIterations :: Int -> Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIterations = loop where
   loop n sampler gen
-    | n < 0     = undefined
-    | n == 0    = return sampler
+    | n <= 0    = return sampler
     | otherwise = do
                     next <- nestedSamplingIteration sampler gen
                     loop (n-1) next gen
