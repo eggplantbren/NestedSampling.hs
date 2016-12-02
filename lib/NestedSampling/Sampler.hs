@@ -15,13 +15,15 @@ import qualified System.Random.MWC as MWC
 import NestedSampling.SpikeSlab
 import NestedSampling.Utils
 
+type Particle = U.Vector Double
+
 -- A sampler
 data Sampler = Sampler
                {
                    numParticles      :: {-# UNPACK #-} !Int,
                    mcmcSteps         :: {-# UNPACK #-} !Int,
-                   theParticles      :: !(V.Vector (U.Vector Double)),
-                   theLogLikelihoods :: !(U.Vector Double),
+                   theParticles      :: !(V.Vector Particle),
+                   theLogLikelihoods :: !Particle,
                    iteration         :: {-# UNPACK #-} !Int,
                    logZ              :: {-# UNPACK #-} !Double,
                    information       :: {-# UNPACK #-} !Double
@@ -71,8 +73,8 @@ findWorstParticle sampler = (idx, U.unsafeIndex lls idx)
 -- Input: A vector of parameters and a loglikelihood threshold
 -- Output: An IO action which would return a new vector of parameters
 -- and its log likelihood
-metropolisUpdate :: Double -> ((U.Vector Double), Double) -> Gen RealWorld
-                                -> IO ((U.Vector Double), Double)
+metropolisUpdate
+  :: Double -> (Particle, Double) -> Gen RealWorld -> IO (Particle, Double)
 metropolisUpdate threshold (x, logL) gen = do
     (proposal, logH) <- perturb x gen
     let a = exp logH
@@ -85,8 +87,8 @@ metropolisUpdate threshold (x, logL) gen = do
       else (x, logL)
 
 -- Function to do many metropolis updates
-metropolisUpdates :: Int -> Double -> ((U.Vector Double), Double) -> Gen RealWorld
-                                -> IO ((U.Vector Double), Double)
+metropolisUpdates :: Int -> Double -> (Particle, Double) -> Gen RealWorld
+                                -> IO (Particle, Double)
 metropolisUpdates = loop where
   loop n threshold (x, logL) gen
     | n <= 0    = return (x, logL)
@@ -106,7 +108,7 @@ nestedSamplingIterations = loop where
 {-# INLINE nestedSamplingIterations #-}
 
 -- Save a particle to disk
-writeToFile :: Bool -> (Double, Double) -> U.Vector Double -> IO ()
+writeToFile :: Bool -> (Double, Double) -> Particle -> IO ()
 writeToFile append (logw, logl) particle = do
     -- Open the file
     sampleInfo <- openFile "sample_info.txt"
