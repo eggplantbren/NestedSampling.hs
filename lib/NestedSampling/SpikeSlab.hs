@@ -1,6 +1,5 @@
 module NestedSampling.SpikeSlab where
 
-import Control.Monad (replicateM)
 import Control.Monad.Primitive (RealWorld)
 import Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM

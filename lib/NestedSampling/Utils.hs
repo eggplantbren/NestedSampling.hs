@@ -1,6 +1,6 @@
-module NestedSampling.Utils where
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
-import qualified Data.Vector.Unboxed as U
+module NestedSampling.Utils where
 
 -- Logsumexp
 logsumexp :: Double -> Double -> Double

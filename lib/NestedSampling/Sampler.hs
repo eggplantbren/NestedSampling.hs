@@ -3,7 +3,6 @@
 module NestedSampling.Sampler where
 
 import System.IO
-import Control.Monad (replicateM, when)
 import Control.Monad.Primitive (RealWorld)
 import Data.List
 import qualified Data.Vector as V
@@ -14,7 +13,6 @@ import System.Random.MWC (Gen)
 import qualified System.Random.MWC as MWC
 
 import NestedSampling.SpikeSlab
-import NestedSampling.RNG
 import NestedSampling.Utils
 
 -- A sampler
@@ -47,11 +45,11 @@ generateSampler n m gen
         putStr ("Generating " ++ (show n) ++ " particles\
                         \ from the prior...")
         hFlush stdout
-        theParticles <- V.replicateM n (fromPrior gen)
-        let lls = V.map logLikelihood theParticles
+        particles <- V.replicateM n (fromPrior gen)
+        let lls = V.map logLikelihood particles
         putStrLn "done."
         return Sampler {numParticles=n, mcmcSteps=m,
-                        theParticles=theParticles,
+                        theParticles=particles,
                         theLogLikelihoods=U.convert lls, iteration=1,
                         logZ = -1E300, information=0.0}
 
@@ -136,12 +134,12 @@ nestedSamplingIteration sampler gen = do
     copy <- chooseCopy iWorst n gen
 
     -- Approximate log prior weight of the worst particle
-    let logPriorWeight = -(k/n) + log (exp (1.0/n) - 1.0) where
-          k = fromIntegral it
-          n = fromIntegral (numParticles sampler)
+    let logPriorWeight = -(k/np) + log (exp (1.0/np) - 1.0) where
+          k  = fromIntegral it
+          np = fromIntegral (numParticles sampler)
     let logPost = logPriorWeight + logLike where
           logLike = snd worst
-    let logZ' = logsumexp (logZ sampler) logPost 
+    let logZ' = logsumexp (logZ sampler) logPost
 
     let information' = exp (logPost - logZ') * (snd worst)
                        + exp (logZ sampler - logZ') *

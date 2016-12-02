@@ -1,9 +1,7 @@
 module NestedSampling.RNG where
 
-import Data.Vector.Unboxed as U
-import System.Random.MWC (Gen, uniform, uniformR)
+import System.Random.MWC (Gen, uniform)
 import System.Random.MWC.Distributions (standard)
-import Control.Monad
 import Control.Monad.Primitive (RealWorld)
 
 -- My favourite heavy tailed distribution
