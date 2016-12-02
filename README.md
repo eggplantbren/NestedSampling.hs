@@ -1,6 +1,8 @@
 NestedSampling.hs
 =================
 
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/eggplantbren/NestedSampling.hs/blob/master/LICENSE)
+
 Eventually, this will be a Haskell implementation of classic Nested Sampling.
 Warning: I am a beginner at this language so don't expect much for a while.
 
