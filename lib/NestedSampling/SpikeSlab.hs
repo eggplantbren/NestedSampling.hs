@@ -3,9 +3,9 @@ module NestedSampling.SpikeSlab where
 import Control.Monad.Primitive (RealWorld)
 import Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
-import NestedSampling.RNG
 import NestedSampling.Utils
 import System.Random.MWC (Gen, uniform, uniformR)
+import System.Random.MWC.Distributions (standard)
 
 -- The SpikeSlab model --
 
@@ -55,4 +55,19 @@ perturb params gen = do
 -- wrap back into [-0.5, 0.5]
 perturbSingle :: Double -> Double -> Double
 perturbSingle x rh = (`wrap` (-0.5, 0.5)) $ x + rh
+
+-- My favourite heavy tailed distribution
+randh :: Gen RealWorld -> IO Double
+randh gen = do
+            a <- standard gen
+            b <- uniform gen
+            n <- standard gen
+            return $! transform a b n
+
+-- Function that transforms (a, b, n) -> x
+-- for randh
+transform :: Double -> Double -> Double -> Double
+transform a b n =
+  let t = a/sqrt (- (log b))
+  in  10.0**(1.5 - 3.0*(abs t))*n
 

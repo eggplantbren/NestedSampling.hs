@@ -18,8 +18,7 @@ library
   ghc-options:
     -Wall
   exposed-modules:
-      NestedSampling.RNG
-    , NestedSampling.Sampler
+      NestedSampling.Sampler
     , NestedSampling.SpikeSlab
     , NestedSampling.Utils
   build-depends:
