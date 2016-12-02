@@ -6,7 +6,7 @@ import Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
 import NestedSampling.RNG
 import NestedSampling.Utils
-import System.Random.MWC (Gen)
+import System.Random.MWC (Gen, uniform, uniformR)
 
 -- The SpikeSlab model --
 
@@ -27,7 +27,7 @@ logLikelihood params = logsumexp (logl1 + log 100.0) logl2
 -- representing a point in the parameter space
 fromPrior :: Gen RealWorld -> IO (U.Vector Double)
 fromPrior gen = do
-    x <- U.replicateM 20 (rand gen)
+    x <- U.replicateM 20 (uniform gen)
     return $ U.map (\a -> a - 0.5) x
 
 -- Perturb takes a list of doubles as input
@@ -36,7 +36,7 @@ fromPrior gen = do
 perturb :: U.Vector Double -> Gen RealWorld -> IO (U.Vector Double, Double)
 perturb params gen = do
     -- Choose a parameter to perturb
-    k <- randInt (U.length params) gen
+    k <- uniformR (0, U.length params - 1) gen
 
     -- Draw from randh
     rh <- randh gen

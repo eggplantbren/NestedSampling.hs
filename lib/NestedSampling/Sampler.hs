@@ -75,7 +75,7 @@ metropolisUpdate :: Double -> ((U.Vector Double), Double) -> Gen RealWorld
 metropolisUpdate threshold (x, logL) gen = do
     (proposal, logH) <- perturb x gen
     let a = exp logH
-    uu <- rand gen
+    uu <- MWC.uniform gen
     let llProposal = logLikelihood proposal
     let accept = (uu < a) && (llProposal > threshold)
     return $
@@ -121,7 +121,7 @@ writeToFile append (logw, logl) particle = do
                         (if append then AppendMode else WriteMode)
 
     let particle' = U.toList particle
-    hPutStrLn sample $ foldl' (++) [] $ [show x ++ " " | x <- particle']        
+    hPutStrLn sample $ foldl' (++) [] $ [show x ++ " " | x <- particle']
     hClose sample
 
 -- Do a single NestedSampling iteration
