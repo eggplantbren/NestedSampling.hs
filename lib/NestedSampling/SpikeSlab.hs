@@ -1,12 +1,11 @@
 module NestedSampling.SpikeSlab where
 
-import Control.Monad (replicateM)
 import Control.Monad.Primitive (RealWorld)
 import Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
-import NestedSampling.RNG
 import NestedSampling.Utils
-import System.Random.MWC (Gen)
+import System.Random.MWC (Gen, uniform, uniformR)
+import System.Random.MWC.Distributions (standard)
 
 -- The SpikeSlab model --
 
@@ -27,7 +26,7 @@ logLikelihood params = logsumexp (logl1 + log 100.0) logl2
 -- representing a point in the parameter space
 fromPrior :: Gen RealWorld -> IO (U.Vector Double)
 fromPrior gen = do
-    x <- U.replicateM 20 (rand gen)
+    x <- U.replicateM 20 (uniform gen)
     return $ U.map (\a -> a - 0.5) x
 
 -- Perturb takes a list of doubles as input
@@ -36,9 +35,7 @@ fromPrior gen = do
 perturb :: U.Vector Double -> Gen RealWorld -> IO (U.Vector Double, Double)
 perturb params gen = do
     -- Choose a parameter to perturb
-    k <- randInt (U.length params) gen
-
-    -- Draw from randh
+    k  <- uniformR (0, U.length params - 1) gen
     rh <- randh gen
 
     -- NB (jtobin):
@@ -56,4 +53,16 @@ perturb params gen = do
 -- wrap back into [-0.5, 0.5]
 perturbSingle :: Double -> Double -> Double
 perturbSingle x rh = (`wrap` (-0.5, 0.5)) $ x + rh
+
+-- My favourite heavy tailed distribution
+randh :: Gen RealWorld -> IO Double
+randh gen = do
+    a <- standard gen
+    b <- uniform gen
+    n <- standard gen
+    return $! transform a b n
+  where
+    transform a b n =
+      let t = a/sqrt (- (log b))
+      in  10.0**(1.5 - 3.0*(abs t))*n
 

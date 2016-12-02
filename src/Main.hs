@@ -1,6 +1,4 @@
-import NestedSampling.RNG
 import NestedSampling.Sampler
-import Control.Monad (replicateM)
 import System.Random.MWC
 
 main :: IO ()
@@ -9,7 +7,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
     sampler <- generateSampler 1000 1000 gen
 
     -- Do 100000 NS iterations (this'll go to a depth of 100 nats)
-    nestedSamplingIterations 100000 sampler gen
+    _ <- nestedSamplingIterations 100000 sampler gen
 
     return ()
 

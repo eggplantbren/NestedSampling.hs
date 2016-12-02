@@ -1,5 +1,5 @@
 name:                NestedSampling-hs
-version:             0.1.0
+version:             0.1.1
 synopsis:            Classic Nested Sampling.
 license:             MIT
 license-file:        LICENSE
@@ -15,9 +15,10 @@ description:
 library
   hs-source-dirs:      lib
   default-language:    Haskell2010
+  ghc-options:
+    -Wall
   exposed-modules:
-      NestedSampling.RNG
-    , NestedSampling.Sampler
+      NestedSampling.Sampler
     , NestedSampling.SpikeSlab
     , NestedSampling.Utils
   build-depends:

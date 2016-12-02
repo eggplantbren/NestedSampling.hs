@@ -3,7 +3,6 @@
 module NestedSampling.Sampler where
 
 import System.IO
-import Control.Monad (replicateM, when)
 import Control.Monad.Primitive (RealWorld)
 import Data.List
 import qualified Data.Vector as V
@@ -14,16 +13,17 @@ import System.Random.MWC (Gen)
 import qualified System.Random.MWC as MWC
 
 import NestedSampling.SpikeSlab
-import NestedSampling.RNG
 import NestedSampling.Utils
+
+type Particle = U.Vector Double
 
 -- A sampler
 data Sampler = Sampler
                {
                    numParticles      :: {-# UNPACK #-} !Int,
                    mcmcSteps         :: {-# UNPACK #-} !Int,
-                   theParticles      :: !(V.Vector (U.Vector Double)),
-                   theLogLikelihoods :: !(U.Vector Double),
+                   theParticles      :: !(V.Vector Particle),
+                   theLogLikelihoods :: !Particle,
                    iteration         :: {-# UNPACK #-} !Int,
                    logZ              :: {-# UNPACK #-} !Double,
                    information       :: {-# UNPACK #-} !Double
@@ -40,20 +40,23 @@ chooseCopy k n = loop where
 
 -- Generate a sampler with n particles and m mcmc steps
 generateSampler :: Int -> Int -> Gen RealWorld -> IO Sampler
-generateSampler n m gen
-    | n <= 1    = undefined
-    | m <= 0    = undefined
-    | otherwise = do
-        putStr ("Generating " ++ (show n) ++ " particles\
-                        \ from the prior...")
-        hFlush stdout
-        theParticles <- V.replicateM n (fromPrior gen)
-        let lls = V.map logLikelihood theParticles
-        putStrLn "done."
-        return Sampler {numParticles=n, mcmcSteps=m,
-                        theParticles=theParticles,
-                        theLogLikelihoods=U.convert lls, iteration=1,
-                        logZ = -1E300, information=0.0}
+generateSampler n m gen = do
+    putStrLn $ "Generating " ++ show nv ++ " particles from the prior..."
+    particles <- V.replicateM nv (fromPrior gen)
+    let lls = V.map logLikelihood particles
+    putStrLn "done."
+    return Sampler {
+        numParticles      = nv
+      , mcmcSteps         = mv
+      , theParticles      = particles
+      , theLogLikelihoods = U.convert lls
+      , iteration         = 1
+      , logZ              = -1E300
+      , information       = 0.0
+      }
+  where
+    nv = if n <= 1 then 1 else n
+    mv = if m <= 0 then 0 else m
 
 -- Find the index and the log likelihood value of the worst particle
 --
@@ -70,12 +73,12 @@ findWorstParticle sampler = (idx, U.unsafeIndex lls idx)
 -- Input: A vector of parameters and a loglikelihood threshold
 -- Output: An IO action which would return a new vector of parameters
 -- and its log likelihood
-metropolisUpdate :: Double -> ((U.Vector Double), Double) -> Gen RealWorld
-                                -> IO ((U.Vector Double), Double)
+metropolisUpdate
+  :: Double -> (Particle, Double) -> Gen RealWorld -> IO (Particle, Double)
 metropolisUpdate threshold (x, logL) gen = do
     (proposal, logH) <- perturb x gen
     let a = exp logH
-    uu <- rand gen
+    uu <- MWC.uniform gen
     let llProposal = logLikelihood proposal
     let accept = (uu < a) && (llProposal > threshold)
     return $
@@ -84,12 +87,11 @@ metropolisUpdate threshold (x, logL) gen = do
       else (x, logL)
 
 -- Function to do many metropolis updates
-metropolisUpdates :: Int -> Double -> ((U.Vector Double), Double) -> Gen RealWorld
-                                -> IO ((U.Vector Double), Double)
+metropolisUpdates :: Int -> Double -> (Particle, Double) -> Gen RealWorld
+                                -> IO (Particle, Double)
 metropolisUpdates = loop where
   loop n threshold (x, logL) gen
-    | n < 0     = undefined
-    | n == 0    = return (x, logL)
+    | n <= 0    = return (x, logL)
     | otherwise = do
                     next  <- metropolisUpdate threshold (x, logL) gen
                     loop (n-1) threshold next gen
@@ -99,15 +101,14 @@ metropolisUpdates = loop where
 nestedSamplingIterations :: Int -> Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIterations = loop where
   loop n sampler gen
-    | n < 0     = undefined
-    | n == 0    = return sampler
+    | n <= 0    = return sampler
     | otherwise = do
                     next <- nestedSamplingIteration sampler gen
                     loop (n-1) next gen
 {-# INLINE nestedSamplingIterations #-}
 
 -- Save a particle to disk
-writeToFile :: Bool -> (Double, Double) -> U.Vector Double -> IO ()
+writeToFile :: Bool -> (Double, Double) -> Particle -> IO ()
 writeToFile append (logw, logl) particle = do
     -- Open the file
     sampleInfo <- openFile "sample_info.txt"
@@ -121,7 +122,7 @@ writeToFile append (logw, logl) particle = do
                         (if append then AppendMode else WriteMode)
 
     let particle' = U.toList particle
-    hPutStrLn sample $ foldl' (++) [] $ [show x ++ " " | x <- particle']        
+    hPutStrLn sample $ foldl' (++) [] $ [show x ++ " " | x <- particle']
     hClose sample
 
 -- Do a single NestedSampling iteration
@@ -136,12 +137,12 @@ nestedSamplingIteration sampler gen = do
     copy <- chooseCopy iWorst n gen
 
     -- Approximate log prior weight of the worst particle
-    let logPriorWeight = -(k/n) + log (exp (1.0/n) - 1.0) where
-          k = fromIntegral it
-          n = fromIntegral (numParticles sampler)
+    let logPriorWeight = -(k/np) + log (exp (1.0/np) - 1.0) where
+          k  = fromIntegral it
+          np = fromIntegral (numParticles sampler)
     let logPost = logPriorWeight + logLike where
           logLike = snd worst
-    let logZ' = logsumexp (logZ sampler) logPost 
+    let logZ' = logsumexp (logZ sampler) logPost
 
     let information' = exp (logPost - logZ') * (snd worst)
                        + exp (logZ sampler - logZ') *

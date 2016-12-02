@@ -1,6 +1,6 @@
-module NestedSampling.Utils where
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
-import qualified Data.Vector.Unboxed as U
+module NestedSampling.Utils where
 
 -- Logsumexp
 logsumexp :: Double -> Double -> Double
@@ -20,10 +20,9 @@ myMod y x = (y/x - (fromIntegral . floor) (y/x))*x
 -- Wrap
 wrap :: Double -> (Double, Double) -> Double
 wrap x (a, b)
-        | b <= a            = undefined
-        | x >= a && x <= b  = x
-        | otherwise         = let xmin = min a b
-                                  xmax = max a b in
-                                  myMod (x - xmin) (xmax - xmin) + xmin
-
+    | x < xmin || x > xmax = myMod (x - xmin) (xmax - xmin) + xmin
+    | otherwise            = x
+  where
+    xmin = min a b
+    xmax = max a b
 
