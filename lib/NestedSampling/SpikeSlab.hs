@@ -1,7 +1,7 @@
 module NestedSampling.SpikeSlab where
 
 import Control.Monad.Primitive (RealWorld)
-import Data.Vector.Unboxed as U
+import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
 import NestedSampling.Utils
 import System.Random.MWC (Gen, uniform, uniformR)
@@ -26,8 +26,8 @@ logLikelihood params = logsumexp (logl1 + log 100.0) logl2
 -- representing a point in the parameter space
 fromPrior :: Gen RealWorld -> IO (U.Vector Double)
 fromPrior gen = do
-    x <- U.replicateM 20 (uniform gen)
-    return $ U.map (\a -> a - 0.5) x
+  x <- U.replicateM 20 (uniform gen)
+  return $ U.map (subtract 0.5) x
 
 -- Perturb takes a list of doubles as input
 -- and returns an IO action that returns the

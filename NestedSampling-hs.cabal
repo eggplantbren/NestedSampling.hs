@@ -1,5 +1,5 @@
 name:                NestedSampling-hs
-version:             0.1.1
+version:             0.1.2
 synopsis:            Classic Nested Sampling.
 license:             MIT
 license-file:        LICENSE
@@ -25,6 +25,7 @@ library
       base >= 4 && < 6
     , mwc-random
     , primitive
+    , psqueues
     , vector
 
 executable ns-example
@@ -37,3 +38,15 @@ executable ns-example
       base
     , NestedSampling-hs
     , mwc-random
+
+executable ns-mini-example
+  hs-source-dirs:    src
+  Main-is:           Mini.hs
+  default-language:  Haskell2010
+  ghc-options:
+    -O2 -fprof-auto -rtsopts
+  build-depends:
+      base
+    , NestedSampling-hs
+    , mwc-random
+
