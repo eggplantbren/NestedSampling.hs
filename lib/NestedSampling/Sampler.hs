@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module NestedSampling.Sampler where
 
@@ -17,12 +18,12 @@ import qualified System.Random.MWC as MWC
 type Particle = U.Vector Double
 
 data Sampler = Sampler {
-    numParticles      :: {-# UNPACK #-} !Int
-  , mcmcSteps         :: {-# UNPACK #-} !Int
-  , theParticles      :: !(IntPSQ Double Particle)
-  , iteration         :: {-# UNPACK #-} !Int
-  , logZ              :: {-# UNPACK #-} !Double
-  , information       :: {-# UNPACK #-} !Double
+    samplerDim       :: {-# UNPACK #-} !Int
+  , samplerSteps     :: {-# UNPACK #-} !Int
+  , samplerParticles :: !(IntPSQ Double Particle)
+  , samplerIter      :: {-# UNPACK #-} !Int
+  , samplerLogZ      :: {-# UNPACK #-} !Double
+  , samplerInfo      :: {-# UNPACK #-} !Double
   } deriving Show
 
 -- | Choose a particle to copy, that isn't number k.
@@ -37,21 +38,18 @@ chooseCopy k n = loop where
 -- Generate a sampler with n particles and m mcmc steps
 generateSampler :: Int -> Int -> Gen RealWorld -> IO Sampler
 generateSampler n m gen = do
-    putStrLn $ "Generating " ++ show nv ++ " particles from the prior..."
-    particles <- replicateM nv (fromPrior gen)
-    let lls = fmap logLikelihood particles
+    putStrLn $ "Generating " ++ show samplerDim ++ " particles from the prior..."
+    particles <- replicateM samplerDim (fromPrior gen)
     putStrLn "done."
-    return Sampler {
-        numParticles      = nv
-      , mcmcSteps         = mv
-      , theParticles      = PSQ.fromList (zip3 [0..] lls particles)
-      , iteration         = 1
-      , logZ              = -1E300
-      , information       = 0.0
-      }
+    let lls              = fmap logLikelihood particles
+        samplerParticles = PSQ.fromList (zip3 [0..] lls particles)
+        samplerIter      = 1
+        samplerLogZ      = -1E300
+        samplerInfo      = 0
+    return Sampler {..}
   where
-    nv = if n <= 1 then 1 else n
-    mv = if m <= 0 then 0 else m
+    samplerDim   = if n <= 1 then 1 else n
+    samplerSteps = if m <= 0 then 0 else m
 
 metropolisUpdate
   :: Double -> (Double, Particle) -> Gen RealWorld -> IO (Double, Particle)
@@ -106,69 +104,53 @@ writeToFile append (logw, logl) particle = do
     hPutStrLn sample $ foldl' (++) [] $ [show x ++ " " | x <- particle']
     hClose sample
 
--- Do a single NestedSampling iteration
+-- Do a single NestedSampling samplerIter
 nestedSamplingIteration :: Sampler -> Gen RealWorld -> IO Sampler
-nestedSamplingIteration sampler gen = do
-  let it        = iteration sampler
-      k         = fromIntegral it
-      n         = numParticles sampler
-      np        = fromIntegral n
-      particles = theParticles sampler
-      lz        = logZ sampler
-      info      = information sampler
-      steps     = mcmcSteps sampler
-      logX      = negate $ fromIntegral it / fromIntegral n
-
-      (iworst, lworst, worst) = case PSQ.findMin particles of
+nestedSamplingIteration Sampler {..} gen = do
+  let k = fromIntegral samplerIter
+      n = fromIntegral samplerDim
+      (iworst, lworst, worst) = case PSQ.findMin samplerParticles of
         Nothing -> error "nestedSamplingInteration: no particles found"
         Just p  -> p
 
-  copy <- chooseCopy iworst n gen
-
   -- Approximate log prior weight of the worst particle
-  let logPriorWeight = -(k/np) + log (exp (1.0/np) - 1.0)
+  let logPriorWeight = - k / n + log (exp (recip n) - 1.0)
       logPost        = logPriorWeight + lworst
-      logZ'          = logsumexp lz logPost
+      samplerLogZ'   = logsumexp samplerLogZ logPost
+      samplerInfo'   =
+          exp (logPost - samplerLogZ') * lworst
+        + exp (samplerLogZ - samplerLogZ') * (samplerInfo + samplerLogZ)
+        - samplerLogZ'
 
-  let information' =
-          exp (logPost - logZ') * lworst
-        + exp (lz - logZ') * (info + lz)
-        - logZ'
-
-  -- Print some stuff from time to time
-  let display = it `mod` n == 0
-
-  when display $ do
-    putStr   $ "Iteration " ++ (show it) ++ ". "
-    putStr   $ "ln(X) = " ++ (show logX) ++ ". "
+  when (samplerIter `mod` samplerDim == 0) $ do
+    putStr   $ "Iteration " ++ (show samplerIter) ++ ". "
+    putStr   $ "ln(X) = " ++ show (negate (k / n)) ++ ". "
     putStrLn $ "ln(L) = " ++ (show lworst) ++ "."
-    putStr   $ "ln(Z) = " ++ (show logZ') ++ ", "
-    putStrLn $ "H = " ++ (show information') ++ " nats.\n"
+    putStr   $ "ln(Z) = " ++ (show samplerLogZ') ++ ", "
+    putStrLn $ "H = " ++ (show samplerInfo') ++ " nats.\n"
 
   -- Write to file
-  writeToFile (it /= 1) (logPriorWeight, lworst) worst
+  writeToFile (samplerIter /= 1) (logPriorWeight, lworst) worst
 
-  let particle = case PSQ.lookup copy particles of
+  copy <- chooseCopy iworst samplerDim gen
+
+  let particle = case PSQ.lookup copy samplerParticles of
         Nothing -> error "nestedSamplingIteration: no particles found"
         Just p  -> p
 
-  -- Do Metropolis
-  (newLl, newP) <- metropolisUpdates steps lworst particle gen
+  (newLl, newP) <- metropolisUpdates samplerSteps lworst particle gen
+
   let replace mparticle = case mparticle of
         Just (idx, _, _) -> ((), Just (idx, newLl, newP))
         Nothing          -> ((), Nothing)
 
-  let (_, theParticles') = PSQ.alterMin replace particles
+      (_, samplerParticles') = PSQ.alterMin replace samplerParticles
 
-  -- Updated sampler
-  let sampler' = Sampler {
-          numParticles      = n
-        , mcmcSteps         = steps
-        , theParticles      = theParticles'
-        , iteration         = it + 1
-        , logZ              = logZ'
-        , information       = information'
-        }
-
-  return $! sampler'
+  return $! Sampler {
+      samplerParticles = samplerParticles'
+    , samplerIter      = samplerIter + 1
+    , samplerLogZ      = samplerLogZ'
+    , samplerInfo      = samplerInfo'
+    , ..
+    }
 
