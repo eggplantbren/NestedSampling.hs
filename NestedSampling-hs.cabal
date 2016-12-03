@@ -26,6 +26,7 @@ library
     , mwc-random
     , primitive
     , psqueues
+    , transformers
     , vector
 
 executable ns-example

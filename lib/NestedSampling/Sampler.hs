@@ -5,6 +5,8 @@ module NestedSampling.Sampler where
 
 import Control.Monad
 import Control.Monad.Primitive (RealWorld)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Maybe
 import Data.IntPSQ (IntPSQ)
 import qualified Data.IntPSQ as PSQ
 import qualified Data.Vector.Unboxed as U
@@ -14,12 +16,13 @@ import System.IO
 import System.Random.MWC (Gen)
 import qualified System.Random.MWC as MWC
 
-type Particle = U.Vector Double
+type Particle  = U.Vector Double
+type Particles = IntPSQ Double Particle
 
 data Sampler = Sampler {
     samplerDim       :: {-# UNPACK #-} !Int
   , samplerSteps     :: {-# UNPACK #-} !Int
-  , samplerParticles :: !(IntPSQ Double Particle)
+  , samplerParticles :: !Particles
   , samplerIter      :: {-# UNPACK #-} !Int
   , samplerLogZ      :: {-# UNPACK #-} !Double
   , samplerInfo      :: {-# UNPACK #-} !Double
@@ -39,15 +42,6 @@ instance Show Sampler where
       (_, lworst, _) = case PSQ.findMin samplerParticles of
         Nothing -> error "Sampler: no particles"
         Just p  -> p
-
--- | Choose a particle to copy, that isn't number k.
-chooseCopy :: Int -> Int -> Gen RealWorld -> IO Int
-chooseCopy k n = loop where
-  loop prng = do
-    index <- MWC.uniformR (0, n - 1) prng
-    if   index == k
-    then loop prng
-    else return index
 
 -- Generate a sampler with n particles and m mcmc steps
 generateSampler :: Int -> Int -> Gen RealWorld -> IO Sampler
@@ -95,8 +89,10 @@ nestedSamplingIterations = loop where
   loop n sampler gen
     | n <= 0    = return sampler
     | otherwise = do
-        next <- nestedSamplingIteration sampler gen
-        loop (n-1) next gen
+        mnext <- runMaybeT $ nestedSamplingIteration sampler gen
+        case mnext of
+          Nothing   -> error "nestedSamplingIterations: no particles found"
+          Just next -> loop (n - 1) next gen
 {-# INLINE nestedSamplingIterations #-}
 
 -- Save a particle to disk
@@ -110,18 +106,13 @@ writeToFile mode (logw, logl) particle = do
     hPutStrLn sample $ U.foldl' (\str x -> str ++ " " ++ show x) [] particle
     hClose sample
 
-nestedSamplingIteration :: Sampler -> Gen RealWorld -> IO Sampler
+nestedSamplingIteration :: Sampler -> Gen RealWorld -> MaybeT IO Sampler
 nestedSamplingIteration Sampler {..} gen = do
-  let (iworst, lworst, worst) = case PSQ.findMin samplerParticles of
-        Nothing -> error "nestedSamplingIteration: no particles found"
-        Just p  -> p
+  (_, lworst, worst) <- hoistMaybe (PSQ.findMin samplerParticles)
 
-      k = fromIntegral samplerIter
+  let k = fromIntegral samplerIter
       n = fromIntegral samplerDim
-
-      -- Approximate log prior weight of the worst particle
       logPriorWeight = - k / n + log (exp (recip n) - 1.0)
-
       logPost        = logPriorWeight + lworst
       samplerLogZ'   = logsumexp samplerLogZ logPost
       samplerInfo'   =
@@ -129,29 +120,49 @@ nestedSamplingIteration Sampler {..} gen = do
         + exp (samplerLogZ - samplerLogZ') * (samplerInfo + samplerLogZ)
         - samplerLogZ'
 
-  when (samplerIter `mod` samplerDim == 0) $ print Sampler {..}
-  let iomode = if samplerIter /= 1 then AppendMode else WriteMode
-  writeToFile iomode (logPriorWeight, lworst) worst
+  lift $ do
+    when (samplerIter `mod` samplerDim == 0) $ print Sampler {..}
+    let iomode = if samplerIter /= 1 then AppendMode else WriteMode
+    writeToFile iomode (logPriorWeight, lworst) worst
 
-  copy <- chooseCopy iworst samplerDim gen
-
-  let particle = case PSQ.lookup copy samplerParticles of
-        Nothing -> error "nestedSamplingIteration: no particles found"
-        Just p  -> p
-
-  (newLl, newP) <- metropolisUpdates samplerSteps lworst particle gen
-
-  let replace mparticle = case mparticle of
-        Just (idx, _, _) -> ((), Just (idx, newLl, newP))
-        Nothing          -> ((), Nothing)
-
-      (_, samplerParticles') = PSQ.alterMin replace samplerParticles
+  particles <- update samplerDim samplerSteps samplerParticles gen
 
   return $! Sampler {
-      samplerParticles = samplerParticles'
+      samplerParticles = particles
     , samplerIter      = samplerIter + 1
     , samplerLogZ      = samplerLogZ'
     , samplerInfo      = samplerInfo'
     , ..
     }
+{-# INLINE nestedSamplingIteration #-}
+
+update :: Int -> Int -> Particles -> Gen RealWorld -> MaybeT IO Particles
+update dim steps particles gen = do
+  (iworst, lworst, _) <- hoistMaybe (PSQ.findMin particles)
+  idx      <- lift (chooseCopy iworst dim gen)
+  particle <- hoistMaybe (PSQ.lookup idx particles)
+  (ll, p)  <- lift (metropolisUpdates steps lworst particle gen)
+
+  let replace mparticle = case mparticle of
+        Just (j, _, _) -> ((), Just (j, ll, p))
+        Nothing        -> ((), Nothing)
+
+      (_, updated) = PSQ.alterMin replace particles
+
+  return $! updated
+{-# INLINE update #-}
+
+-- | Choose a number in the supplied range that is different from the supplied
+--   reference.
+chooseCopy :: Int -> Int -> Gen RealWorld -> IO Int
+chooseCopy ref n = loop where
+  loop prng = do
+    index <- MWC.uniformR (0, n - 1) prng
+    if   index == ref
+    then loop prng
+    else return $! index
+
+-- | Hoist a 'Maybe' into a 'MaybeT'.
+hoistMaybe :: Monad m => Maybe a -> MaybeT m a
+hoistMaybe = MaybeT . return
 
