@@ -1,5 +1,5 @@
 name:                NestedSampling-hs
-version:             0.1.2
+version:             0.2.0
 synopsis:            Classic Nested Sampling.
 license:             MIT
 license-file:        LICENSE
