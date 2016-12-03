@@ -1,33 +1,29 @@
-{-# LANGUAGE BangPatterns #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module NestedSampling.Sampler where
 
-import System.IO
+import Control.Monad
 import Control.Monad.Primitive (RealWorld)
+import Data.IntPSQ (IntPSQ)
+import qualified Data.IntPSQ as PSQ
 import Data.List
-import qualified Data.Vector as V
-import qualified Data.Vector.Mutable as VM
 import qualified Data.Vector.Unboxed as U
-import qualified Data.Vector.Unboxed.Mutable as UM
+import NestedSampling.SpikeSlab
+import NestedSampling.Utils
+import System.IO
 import System.Random.MWC (Gen)
 import qualified System.Random.MWC as MWC
 
-import NestedSampling.SpikeSlab
-import NestedSampling.Utils
-
 type Particle = U.Vector Double
 
--- A sampler
-data Sampler = Sampler
-               {
-                   numParticles      :: {-# UNPACK #-} !Int,
-                   mcmcSteps         :: {-# UNPACK #-} !Int,
-                   theParticles      :: !(V.Vector Particle),
-                   theLogLikelihoods :: !Particle,
-                   iteration         :: {-# UNPACK #-} !Int,
-                   logZ              :: {-# UNPACK #-} !Double,
-                   information       :: {-# UNPACK #-} !Double
-               } deriving Show
+data Sampler = Sampler {
+    numParticles      :: {-# UNPACK #-} !Int
+  , mcmcSteps         :: {-# UNPACK #-} !Int
+  , theParticles      :: !(IntPSQ Double Particle)
+  , iteration         :: {-# UNPACK #-} !Int
+  , logZ              :: {-# UNPACK #-} !Double
+  , information       :: {-# UNPACK #-} !Double
+  } deriving Show
 
 -- | Choose a particle to copy, that isn't number k.
 chooseCopy :: Int -> Int -> Gen RealWorld -> IO Int
@@ -42,14 +38,13 @@ chooseCopy k n = loop where
 generateSampler :: Int -> Int -> Gen RealWorld -> IO Sampler
 generateSampler n m gen = do
     putStrLn $ "Generating " ++ show nv ++ " particles from the prior..."
-    particles <- V.replicateM nv (fromPrior gen)
-    let lls = V.map logLikelihood particles
+    particles <- replicateM nv (fromPrior gen)
+    let lls = fmap logLikelihood particles
     putStrLn "done."
     return Sampler {
         numParticles      = nv
       , mcmcSteps         = mv
-      , theParticles      = particles
-      , theLogLikelihoods = U.convert lls
+      , theParticles      = PSQ.fromList (zip3 [0..] lls particles)
       , iteration         = 1
       , logZ              = -1E300
       , information       = 0.0
@@ -58,24 +53,9 @@ generateSampler n m gen = do
     nv = if n <= 1 then 1 else n
     mv = if m <= 0 then 0 else m
 
--- Find the index and the log likelihood value of the worst particle
---
--- NB (jtobin):
---   It may be better to use something like a heap so that we can access the
---   min element in O(1).
-findWorstParticle :: Sampler -> (Int, Double)
-findWorstParticle sampler = (idx, U.unsafeIndex lls idx)
-    where
-        idx = U.minIndex lls
-        lls = theLogLikelihoods sampler
-
--- Function to do a single metropolis update
--- Input: A vector of parameters and a loglikelihood threshold
--- Output: An IO action which would return a new vector of parameters
--- and its log likelihood
 metropolisUpdate
-  :: Double -> (Particle, Double) -> Gen RealWorld -> IO (Particle, Double)
-metropolisUpdate threshold (x, logL) gen = do
+  :: Double -> (Double, Particle) -> Gen RealWorld -> IO (Double, Particle)
+metropolisUpdate threshold (logL, x) gen = do
     (proposal, logH) <- perturb x gen
     let a = exp logH
     uu <- MWC.uniform gen
@@ -83,28 +63,29 @@ metropolisUpdate threshold (x, logL) gen = do
     let accept = (uu < a) && (llProposal > threshold)
     return $
       if   accept
-      then (proposal, llProposal)
-      else (x, logL)
+      then (llProposal, proposal)
+      else (logL, x)
+{-# INLINE metropolisUpdate #-}
 
--- Function to do many metropolis updates
-metropolisUpdates :: Int -> Double -> (Particle, Double) -> Gen RealWorld
-                                -> IO (Particle, Double)
+metropolisUpdates
+  :: Int -> Double -> (Double, Particle) -> Gen RealWorld
+  -> IO (Double, Particle)
 metropolisUpdates = loop where
-  loop n threshold (x, logL) gen
-    | n <= 0    = return (x, logL)
+  loop n threshold particle gen
+    | n <= 0    = return particle
     | otherwise = do
-                    next  <- metropolisUpdate threshold (x, logL) gen
-                    loop (n-1) threshold next gen
+        next <- metropolisUpdate threshold particle gen
+        loop (n - 1) threshold next gen
 {-# INLINE metropolisUpdates #-}
 
--- Do many NestedSampling iterations
+-- -- Do many NestedSampling iterations
 nestedSamplingIterations :: Int -> Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIterations = loop where
   loop n sampler gen
     | n <= 0    = return sampler
     | otherwise = do
-                    next <- nestedSamplingIteration sampler gen
-                    loop (n-1) next gen
+        next <- nestedSamplingIteration sampler gen
+        loop (n-1) next gen
 {-# INLINE nestedSamplingIterations #-}
 
 -- Save a particle to disk
@@ -128,75 +109,66 @@ writeToFile append (logw, logl) particle = do
 -- Do a single NestedSampling iteration
 nestedSamplingIteration :: Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIteration sampler gen = do
-    let it = iteration sampler
-    let logX = negate $ (fromIntegral it) / (fromIntegral (numParticles sampler)) :: Double
-    let worst = findWorstParticle sampler
+  let it        = iteration sampler
+      k         = fromIntegral it
+      n         = numParticles sampler
+      np        = fromIntegral n
+      particles = theParticles sampler
+      lz        = logZ sampler
+      info      = information sampler
+      steps     = mcmcSteps sampler
+      logX      = negate $ fromIntegral it / fromIntegral n
 
-    let iWorst = fst worst
-    let n = numParticles sampler
-    copy <- chooseCopy iWorst n gen
+      (iworst, lworst, worst) = case PSQ.findMin particles of
+        Nothing -> error "nestedSamplingInteration: no particles found"
+        Just p  -> p
 
-    -- Approximate log prior weight of the worst particle
-    let logPriorWeight = -(k/np) + log (exp (1.0/np) - 1.0) where
-          k  = fromIntegral it
-          np = fromIntegral (numParticles sampler)
-    let logPost = logPriorWeight + logLike where
-          logLike = snd worst
-    let logZ' = logsumexp (logZ sampler) logPost
+  copy <- chooseCopy iworst n gen
 
-    let information' = exp (logPost - logZ') * (snd worst)
-                       + exp (logZ sampler - logZ') *
-                          (information sampler + logZ sampler) - logZ'
+  -- Approximate log prior weight of the worst particle
+  let logPriorWeight = -(k/np) + log (exp (1.0/np) - 1.0)
+      logPost        = logPriorWeight + lworst
+      logZ'          = logsumexp lz logPost
 
-    --H = exp(Obj[worst].logWt - logZnew) * Obj[worst].logL
-    -- + exp(logZ - logZnew) * (H + logZ) - logZnew;
-    --logZ = logZnew;
+  let information' =
+          exp (logPost - logZ') * lworst
+        + exp (lz - logZ') * (info + lz)
+        - logZ'
 
-    -- Print some stuff from time to time
-    let display = it `mod` (numParticles sampler) == 0 :: Bool
-    if display then do
-        putStr   $ "Iteration " ++ (show it) ++ ". "
-        putStr   $ "ln(X) = " ++ (show logX) ++ ". "
-        putStrLn $ "ln(L) = " ++ (show $ snd worst) ++ "."
-        putStr   $ "ln(Z) = " ++ (show logZ') ++ ", "
-        putStrLn $ "H = " ++ (show information') ++ " nats.\n"
+  -- Print some stuff from time to time
+  let display = it `mod` n == 0
 
-    else return ()
---        putStr $ "log(L) = " ++ (show $ snd worst) ++ ". " }
---        when (it == 1)
+  when display $ do
+    putStr   $ "Iteration " ++ (show it) ++ ". "
+    putStr   $ "ln(X) = " ++ (show logX) ++ ". "
+    putStrLn $ "ln(L) = " ++ (show lworst) ++ "."
+    putStr   $ "ln(Z) = " ++ (show logZ') ++ ", "
+    putStrLn $ "H = " ++ (show information') ++ " nats.\n"
 
+  -- Write to file
+  writeToFile (it /= 1) (logPriorWeight, lworst) worst
 
-    -- Write to file
-    writeToFile (it /= 1) (logPriorWeight, snd worst)
-                        $ (theParticles sampler) V.! iWorst
+  let particle = case PSQ.lookup copy particles of
+        Nothing -> error "nestedSamplingIteration: no particles found"
+        Just p  -> p
 
+  -- Do Metropolis
+  (newLl, newP) <- metropolisUpdates steps lworst particle gen
+  let replace mparticle = case mparticle of
+        Just (idx, _, _) -> ((), Just (idx, newLl, newP))
+        Nothing          -> ((), Nothing)
 
-    -- Copy a surviving particle
-    let particle = (V.unsafeIndex (theParticles sampler) copy,
-                        U.unsafeIndex (theLogLikelihoods sampler) copy)
+  let (_, theParticles') = PSQ.alterMin replace particles
 
-    -- Do Metropolis
-    let update = metropolisUpdates (mcmcSteps sampler) (snd worst)
-    newParticle <- update particle gen
+  -- Updated sampler
+  let sampler' = Sampler {
+          numParticles      = n
+        , mcmcSteps         = steps
+        , theParticles      = theParticles'
+        , iteration         = it + 1
+        , logZ              = logZ'
+        , information       = information'
+        }
 
-    theParticles' <- do
-      mvec <- V.unsafeThaw (theParticles sampler)
-      VM.unsafeModify mvec (const (fst newParticle)) iWorst
-      V.unsafeFreeze mvec
-
-    theLogLikelihoods' <- do
-      mvec <- U.unsafeThaw (theLogLikelihoods sampler)
-      UM.unsafeModify mvec (const (snd newParticle)) iWorst
-      U.unsafeFreeze mvec
-
-    -- Updated sampler
-    let !sampler' = Sampler { numParticles=(numParticles sampler),
-                     mcmcSteps=(mcmcSteps sampler),
-                     theParticles=theParticles',
-                     theLogLikelihoods=theLogLikelihoods',
-                     iteration=(it + 1),
-                     logZ=logZ',
-                     information=information'}
-
-    return $! sampler'
+  return $! sampler'
 
