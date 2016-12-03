@@ -7,7 +7,6 @@ import Control.Monad
 import Control.Monad.Primitive (RealWorld)
 import Data.IntPSQ (IntPSQ)
 import qualified Data.IntPSQ as PSQ
-import Data.List
 import qualified Data.Vector.Unboxed as U
 import NestedSampling.SpikeSlab
 import NestedSampling.Utils
@@ -24,7 +23,22 @@ data Sampler = Sampler {
   , samplerIter      :: {-# UNPACK #-} !Int
   , samplerLogZ      :: {-# UNPACK #-} !Double
   , samplerInfo      :: {-# UNPACK #-} !Double
-  } deriving Show
+  }
+
+instance Show Sampler where
+  show Sampler {..} = mconcat [
+        "Iteration " ++ show samplerIter ++ ". "
+      , "ln(X) = " ++ show (negate (k / n)) ++ ". "
+      , "ln(L) = " ++ show lworst ++ ".\n"
+      , "ln(Z) = " ++ show samplerLogZ ++ ", "
+      , "H = " ++ show samplerInfo ++ " nats.\n"
+      ]
+    where
+      k = fromIntegral samplerIter
+      n = fromIntegral samplerSteps
+      (_, lworst, _) = case PSQ.findMin samplerParticles of
+        Nothing -> error "Sampler: no particles"
+        Just p  -> p
 
 -- | Choose a particle to copy, that isn't number k.
 chooseCopy :: Int -> Int -> Gen RealWorld -> IO Int
@@ -76,7 +90,6 @@ metropolisUpdates = loop where
         loop (n - 1) threshold next gen
 {-# INLINE metropolisUpdates #-}
 
--- -- Do many NestedSampling iterations
 nestedSamplingIterations :: Int -> Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIterations = loop where
   loop n sampler gen
@@ -87,34 +100,28 @@ nestedSamplingIterations = loop where
 {-# INLINE nestedSamplingIterations #-}
 
 -- Save a particle to disk
-writeToFile :: Bool -> (Double, Double) -> Particle -> IO ()
-writeToFile append (logw, logl) particle = do
-    -- Open the file
-    sampleInfo <- openFile "sample_info.txt"
-                        (if append then AppendMode else WriteMode)
-
+writeToFile :: IOMode -> (Double, Double) -> Particle -> IO ()
+writeToFile mode (logw, logl) particle = do
+    sampleInfo <- openFile "sample_info.txt" mode
     hPutStrLn sampleInfo $ (show logw) ++ " " ++ (show logl)
     hClose sampleInfo
 
-    -- Open the file
-    sample <- openFile "sample.txt"
-                        (if append then AppendMode else WriteMode)
-
-    let particle' = U.toList particle
-    hPutStrLn sample $ foldl' (++) [] $ [show x ++ " " | x <- particle']
+    sample <- openFile "sample.txt" mode
+    hPutStrLn sample $ U.foldl' (\str x -> str ++ " " ++ show x) [] particle
     hClose sample
 
--- Do a single NestedSampling samplerIter
 nestedSamplingIteration :: Sampler -> Gen RealWorld -> IO Sampler
 nestedSamplingIteration Sampler {..} gen = do
-  let k = fromIntegral samplerIter
-      n = fromIntegral samplerDim
-      (iworst, lworst, worst) = case PSQ.findMin samplerParticles of
-        Nothing -> error "nestedSamplingInteration: no particles found"
+  let (iworst, lworst, worst) = case PSQ.findMin samplerParticles of
+        Nothing -> error "nestedSamplingIteration: no particles found"
         Just p  -> p
 
-  -- Approximate log prior weight of the worst particle
-  let logPriorWeight = - k / n + log (exp (recip n) - 1.0)
+      k = fromIntegral samplerIter
+      n = fromIntegral samplerDim
+
+      -- Approximate log prior weight of the worst particle
+      logPriorWeight = - k / n + log (exp (recip n) - 1.0)
+
       logPost        = logPriorWeight + lworst
       samplerLogZ'   = logsumexp samplerLogZ logPost
       samplerInfo'   =
@@ -122,15 +129,9 @@ nestedSamplingIteration Sampler {..} gen = do
         + exp (samplerLogZ - samplerLogZ') * (samplerInfo + samplerLogZ)
         - samplerLogZ'
 
-  when (samplerIter `mod` samplerDim == 0) $ do
-    putStr   $ "Iteration " ++ (show samplerIter) ++ ". "
-    putStr   $ "ln(X) = " ++ show (negate (k / n)) ++ ". "
-    putStrLn $ "ln(L) = " ++ (show lworst) ++ "."
-    putStr   $ "ln(Z) = " ++ (show samplerLogZ') ++ ", "
-    putStrLn $ "H = " ++ (show samplerInfo') ++ " nats.\n"
-
-  -- Write to file
-  writeToFile (samplerIter /= 1) (logPriorWeight, lworst) worst
+  when (samplerIter `mod` samplerDim == 0) $ print Sampler {..}
+  let iomode = if samplerIter /= 1 then AppendMode else WriteMode
+  writeToFile iomode (logPriorWeight, lworst) worst
 
   copy <- chooseCopy iworst samplerDim gen
 
