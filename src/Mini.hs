@@ -1,11 +1,11 @@
 import NestedSampling.Sampler
-import System.Random.MWC
+import NestedSampling.SpikeSlab
+import System.Random.MWC hiding (initialize)
 
 main :: IO ()
 main = withSystemRandom . asGenIO $ \gen -> do
-  sampler <- generateSampler 1000 1000 gen
-
-  _ <- nestedSamplingIterations 1000 sampler gen
+  origin <- initialize 1000 1000 fromPrior logLikelihood gen
+  _      <- nestedSampling 1000 origin gen
 
   return ()
 
