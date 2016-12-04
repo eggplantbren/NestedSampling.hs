@@ -17,20 +17,20 @@ import Control.Monad.Trans.Maybe
 import Data.IntPSQ (IntPSQ)
 import qualified Data.IntPSQ as PSQ
 import qualified Data.Vector.Unboxed as U
-import qualified Data.Vector.Unboxed.Mutable as UM
 import NestedSampling.Utils
 import System.IO
 import System.Random.MWC (Gen)
 import qualified System.Random.MWC as MWC hiding (initialize)
-import qualified System.Random.MWC.Distributions as MWC
 
 type Particle  = U.Vector Double
 type Particles = IntPSQ Double Particle
+type Perturber = Particle -> Gen RealWorld -> IO (Double, Particle)
 
 data Sampler = Sampler {
     samplerDim        :: {-# UNPACK #-} !Int
   , samplerSteps      :: {-# UNPACK #-} !Int
   , samplerLikelihood :: Particle -> Double
+  , samplerPerturber  :: Perturber
   , samplerParticles  :: !Particles
   , samplerIter       :: {-# UNPACK #-} !Int
   , samplerLogZ       :: {-# UNPACK #-} !Double
@@ -53,15 +53,16 @@ instance Show Sampler where
         Just p  -> p
 
 -- | Initialize a sampler with the provided dimension, number of steps, prior,
---   and log-likelihood.
+--   perturbation function, and log-likelihood.
 initialize
-  :: Int
-  -> Int
-  -> (Gen RealWorld -> IO Particle)
-  -> (Particle -> Double)
-  -> Gen RealWorld
+  :: Int                            -- ^ Number of particles
+  -> Int                            -- ^ Number of MCMC steps
+  -> (Gen RealWorld -> IO Particle) -- ^ Sampling function for prior
+  -> (Particle -> Double)           -- ^ Log-likelihood function
+  -> Perturber                      -- ^ Perturbation function
+  -> Gen RealWorld                  -- ^ PRNG
   -> IO Sampler
-initialize n m prior logLikelihood gen = do
+initialize n m prior logLikelihood samplerPerturber gen = do
     putStrLn $ "Generating " ++ show samplerDim ++ " particles from the prior..."
     particles <- replicateM samplerDim (prior gen)
     putStrLn "done."
@@ -124,7 +125,8 @@ updateParticles Sampler {..} gen = do
   idx      <- lift (chooseCopy iworst samplerDim gen)
   particle <- hoistMaybe (PSQ.lookup idx samplerParticles)
   (ll, p)  <- lift $
-    metropolisUpdates samplerSteps lworst particle samplerLikelihood gen
+    metropolisUpdates
+      samplerSteps lworst particle samplerLikelihood samplerPerturber gen
 
   let replace mparticle = case mparticle of
         Just (j, _, _) -> ((), Just (j, ll, p))
@@ -150,24 +152,26 @@ metropolisUpdates
   -> Double
   -> (Double, Particle)
   -> (Particle -> Double)
+  -> Perturber
   -> Gen RealWorld
   -> IO (Double, Particle)
 metropolisUpdates = loop where
-  loop n threshold particle logLikelihood gen
+  loop n threshold particle logLikelihood perturber gen
     | n <= 0    = return particle
     | otherwise = do
-        next <- metropolisUpdate threshold particle logLikelihood gen
-        loop (n - 1) threshold next logLikelihood gen
+        next <- metropolisUpdate threshold particle logLikelihood perturber gen
+        loop (n - 1) threshold next logLikelihood perturber gen
 {-# INLINE metropolisUpdates #-}
 
 metropolisUpdate
   :: Double
   -> (Double, Particle)
   -> (Particle -> Double)
+  -> Perturber
   -> Gen RealWorld
   -> IO (Double, Particle)
-metropolisUpdate threshold (logL, x) logLikelihood gen = do
-    (logH, proposal) <- perturb x gen
+metropolisUpdate threshold (logL, x) logLikelihood perturber gen = do
+    (logH, proposal) <- perturber x gen
     let a = exp logH
     uu <- MWC.uniform gen
     let llProposal = logLikelihood proposal
@@ -177,26 +181,6 @@ metropolisUpdate threshold (logL, x) logLikelihood gen = do
       then (llProposal, proposal)
       else (logL, x)
 {-# INLINE metropolisUpdate #-}
-
--- | Perturb a particle, returning the perturbed particle and a logH value.
-perturb :: Particle -> Gen RealWorld -> IO (Double, Particle)
-perturb particle gen = do
-    k  <- MWC.uniformR (0, U.length particle - 1) gen
-    rh <- randh gen
-
-    -- NB (jtobin):
-    --   note that we can't use unsafeThaw here as the particle vector could
-    --   still be used elsewhere (i.e. in the non-accepting branch of
-    --   a Metropolis update).
-    perturbed <- do
-      mvec <- U.thaw particle
-      UM.unsafeModify mvec (`perturbSingle` rh) k
-      U.unsafeFreeze mvec
-
-    return (0.0, perturbed)
-  where
-    perturbSingle :: Double -> Double -> Double
-    perturbSingle x rh = (`wrap` (-0.5, 0.5)) $ x + rh
 
 -- Save a particle to disk
 writeToFile :: IOMode -> (Double, Double) -> Particle -> IO ()
@@ -212,16 +196,4 @@ writeToFile mode (logw, logl) particle = do
 -- | Hoist a 'Maybe' into a 'MaybeT'.
 hoistMaybe :: Monad m => Maybe a -> MaybeT m a
 hoistMaybe = MaybeT . return
-
--- My favourite heavy tailed distribution
-randh :: Gen RealWorld -> IO Double
-randh gen = do
-    a <- MWC.standard gen
-    b <- MWC.uniform gen
-    n <- MWC.standard gen
-    return $! transform a b n
-  where
-    transform a b n =
-      let t = a/sqrt (- (log b))
-      in  10.0**(1.5 - 3.0*(abs t))*n
 
