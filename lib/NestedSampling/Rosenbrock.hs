@@ -7,7 +7,10 @@ import NestedSampling.Utils
 import System.Random.MWC as MWC (Gen, uniform, uniformR)
 
 -- A multivariate Rosenbrock likelihood
--- c.f. the one in DNest4
+
+-- c.f. the one in DNest4, which is 50 dimensional
+numDimensions :: Int
+numDimensions = 10
 
 -- Log likelihood function
 logLikelihood :: U.Vector Double -> Double
@@ -20,7 +23,7 @@ logLikelihood x = -(2.0*f)
 -- fromPrior is an IO action that returns a point in the parameter space
 fromPrior :: Gen RealWorld -> IO (U.Vector Double)
 fromPrior gen = do
-  x <- U.replicateM 50 (uniform gen)
+  x <- U.replicateM numDimensions (uniform gen)
   return $ U.map (\x' -> -10.0 + 20.0*x') x
 
 -- | Perturb a particle, returning the perturbed particle and a logH value.

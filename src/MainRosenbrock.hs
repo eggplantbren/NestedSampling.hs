@@ -8,8 +8,8 @@ main = withSystemRandom . asGenIO $ \gen -> do
     -- and 1000 MCMC steps per NS iteration
     origin <- initialize 1000 1000 fromPrior logLikelihood perturb gen
 
-    -- Do 400000 NS iterations (this'll go to a depth of 400 nats)
-    _ <- nestedSampling 400000 origin gen
+    -- Do 100000 NS iterations (this'll go to a depth of 100 nats)
+    _ <- nestedSampling 100000 origin gen
 
     return ()
 
