@@ -47,7 +47,7 @@ instance Show Sampler where
       ]
     where
       k = fromIntegral samplerIter
-      n = fromIntegral samplerSteps
+      n = fromIntegral samplerDim
       (_, lworst, _) = case PSQ.findMin samplerParticles of
         Nothing -> error "Sampler: no particles"
         Just p  -> p
