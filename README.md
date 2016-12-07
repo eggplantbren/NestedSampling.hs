@@ -3,8 +3,9 @@ NestedSampling.hs
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/eggplantbren/NestedSampling.hs/blob/master/LICENSE)
 
-Eventually, this will be a Haskell implementation of classic Nested Sampling.
-Warning: I am a beginner at this language so don't expect much for a while.
+This is a Haskell implementation of the classic Nested Sampling algorithm
+introduced by John Skilling. You can use it for Bayesian inference,
+statistical mechanics, and optimisation applications.
 
 (c) 2016 Brendon J. Brewer and Jared Tobin
 
