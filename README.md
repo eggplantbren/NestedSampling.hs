@@ -18,7 +18,13 @@ stack exec ns-example
 ```
 
 This will run the SpikeSlab example. The output files are
-`sample.txt` (parameters) and `sample_info.txt`
+`sample.txt` (parameters, one line=one sample) and `sample_info.txt`
 (log prior weight and log likelihood).
-Posterior weight is proportional to prior weight times likelihood - that's
-your responsibility for now.
+Posterior weight is proportional to prior weight times likelihood, and it's
+your responsibility to calculate that from the information in the output files.
+
+There is also a 10-dimensional Rosenbrock example, which you can run using
+```
+stack exec rosenbrock-example
+```
+
