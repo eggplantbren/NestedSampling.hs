@@ -23,7 +23,11 @@ import System.Random.MWC (Gen)
 import qualified System.Random.MWC as MWC hiding (initialize)
 
 type Particle  = U.Vector Double
-type Particles = IntPSQ Double Particle
+
+-- Likelihood and tiebreaker
+type Lltb = (Double, Double)
+
+type Particles = IntPSQ Lltb Particle
 type Perturber = Particle -> Gen RealWorld -> IO (Double, Particle)
 
 data Sampler = Sampler {
@@ -41,14 +45,14 @@ instance Show Sampler where
   show Sampler {..} = mconcat [
         "Iteration " ++ show samplerIter ++ ". "
       , "ln(X) = " ++ show (negate (k / n)) ++ ". "
-      , "ln(L) = " ++ show lworst ++ ".\n"
+      , "ln(L) = " ++ show llworst ++ ".\n"
       , "ln(Z) = " ++ show samplerLogZ ++ ", "
       , "H = " ++ show samplerInfo ++ " nats.\n"
       ]
     where
       k = fromIntegral samplerIter
       n = fromIntegral samplerDim
-      (_, lworst, _) = case PSQ.findMin samplerParticles of
+      (_, (llworst, _), _) = case PSQ.findMin samplerParticles of
         Nothing -> error "Sampler: no particles"
         Just p  -> p
 
@@ -65,9 +69,12 @@ initialize
 initialize n m prior logLikelihood samplerPerturber gen = do
     putStrLn $ "Generating " ++ show samplerDim ++ " particles from the prior..."
     particles <- replicateM samplerDim (prior gen)
+    tbs       <- replicateM samplerDim (MWC.uniform gen)
+
     putStrLn "done."
     let lls               = fmap logLikelihood particles
-        samplerParticles  = PSQ.fromList (zip3 [0..] lls particles)
+        lltbs             = zip lls tbs
+        samplerParticles  = PSQ.fromList (zip3 [0..] lltbs particles)
         samplerIter       = 1
         samplerLogZ       = -1E300
         samplerInfo       = 0
@@ -92,11 +99,12 @@ nestedSampling = loop where
 -- | Perform a single nested sampling iteration.
 nestedSamplingIteration :: Sampler -> Gen RealWorld -> MaybeT IO Sampler
 nestedSamplingIteration Sampler {..} gen = do
-  (_, lworst, worst) <- hoistMaybe (PSQ.findMin samplerParticles)
-  particles          <- updateParticles Sampler {..} gen
+  (_, lltbworst, worst) <- hoistMaybe (PSQ.findMin samplerParticles)
+  particles            <- updateParticles Sampler {..} gen
 
   let k = fromIntegral samplerIter
       n = fromIntegral samplerDim
+      lworst         = fst lltbworst
       logPriorWeight = - k / n + log (exp (recip n) - 1.0)
       logPost        = logPriorWeight + lworst
       samplerLogZ'   = logsumexp samplerLogZ logPost
@@ -121,15 +129,15 @@ nestedSamplingIteration Sampler {..} gen = do
 
 updateParticles :: Sampler -> Gen RealWorld -> MaybeT IO Particles
 updateParticles Sampler {..} gen = do
-  (iworst, lworst, _) <- hoistMaybe (PSQ.findMin samplerParticles)
-  idx      <- lift (chooseCopy iworst samplerDim gen)
-  particle <- hoistMaybe (PSQ.lookup idx samplerParticles)
-  (ll, p)  <- lift $
+  (iworst, lltbworst, _) <- hoistMaybe (PSQ.findMin samplerParticles)
+  idx        <- lift (chooseCopy iworst samplerDim gen)
+  particle   <- hoistMaybe (PSQ.lookup idx samplerParticles)
+  (lltb, p)  <- lift $
     metropolisUpdates
-      samplerSteps lworst particle samplerLikelihood samplerPerturber gen
+      samplerSteps lltbworst particle samplerLikelihood samplerPerturber gen
 
   let replace mparticle = case mparticle of
-        Just (j, _, _) -> ((), Just (j, ll, p))
+        Just (j, _, _) -> ((), Just (j, lltb, p))
         Nothing        -> ((), Nothing)
 
       (_, updated) = PSQ.alterMin replace samplerParticles
@@ -149,12 +157,12 @@ chooseCopy ref n = loop where
 
 metropolisUpdates
   :: Int
-  -> Double
-  -> (Double, Particle)
+  -> Lltb
+  -> (Lltb, Particle)
   -> (Particle -> Double)
   -> Perturber
   -> Gen RealWorld
-  -> IO (Double, Particle)
+  -> IO (Lltb, Particle)
 metropolisUpdates = loop where
   loop n threshold particle logLikelihood perturber gen
     | n <= 0    = return particle
@@ -164,22 +172,32 @@ metropolisUpdates = loop where
 {-# INLINE metropolisUpdates #-}
 
 metropolisUpdate
-  :: Double
-  -> (Double, Particle)
+  :: Lltb
+  -> (Lltb, Particle)
   -> (Particle -> Double)
   -> Perturber
   -> Gen RealWorld
-  -> IO (Double, Particle)
-metropolisUpdate threshold (logL, x) logLikelihood perturber gen = do
+  -> IO (Lltb, Particle)
+metropolisUpdate threshold ((ll, tb), x) logLikelihood perturber gen = do
     (logH, proposal) <- perturber x gen
     let a = exp logH
     uu <- MWC.uniform gen
     let llProposal = logLikelihood proposal
-    let accept = (uu < a) && (llProposal > threshold)
+
+    -- Generate tiebreaker for proposal
+    rh <- randh gen
+    let tbProposal = wrap (tb + rh) (0.0, 1.0)
+
+    -- Check whether proposal is above threshold
+    let check1 = llProposal > (fst threshold)
+        check2 = llProposal == (fst threshold) &&
+                    tbProposal > (snd threshold)
+
+    let accept = (uu < a) && (check1 || check2)
     return $
       if   accept
-      then (llProposal, proposal)
-      else (logL, x)
+      then ((llProposal, tbProposal), proposal)
+      else ((ll, tb), x)
 {-# INLINE metropolisUpdate #-}
 
 -- Save a particle to disk
