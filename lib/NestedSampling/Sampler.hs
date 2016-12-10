@@ -67,11 +67,12 @@ initialize
   -> Gen RealWorld                  -- ^ PRNG
   -> IO Sampler
 initialize n m prior logLikelihood samplerPerturber gen = do
-    putStrLn $ "Generating " ++ show samplerDim ++ " particles from the prior..."
+    putStr $ "Generating " ++ show samplerDim ++ " particles from the prior..."
+    hFlush stdout
     particles <- replicateM samplerDim (prior gen)
     tbs       <- replicateM samplerDim (MWC.uniform gen)
 
-    putStrLn "done."
+    putStrLn "done.\n"
     let lls               = fmap logLikelihood particles
         lltbs             = zip lls tbs
         samplerParticles  = PSQ.fromList (zip3 [0..] lltbs particles)
