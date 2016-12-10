@@ -11,8 +11,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
         maxDepth      = 80.0     :: Double
         numIterations = floor $ maxDepth * (fromIntegral numParticles) :: Int
 
-    -- Create a sampler with 1000 particles
-    -- and 1000 MCMC steps per NS iteration
+    -- Create the sampler
     origin <- initialize
                 numParticles mcmcSteps fromPrior logLikelihood perturb gen
 
