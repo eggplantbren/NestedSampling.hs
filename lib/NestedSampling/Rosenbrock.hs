@@ -1,5 +1,6 @@
 module NestedSampling.Rosenbrock where
 
+import Control.Monad (replicateM_)
 import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
@@ -32,14 +33,25 @@ perturb particle gen = do
     k  <- MWC.uniformR (0, U.length particle - 1) gen
     rh <- randh gen
 
+    -- Decide whether to do 1 repetition or more
+    moreThanOne <- MWC.uniform gen                          :: IO Bool
+    reps <-
+        if moreThanOne then
+            do
+                u <- MWC.uniform gen                        :: IO Double
+                let d = 1.0 + 10.0**(2.0*u)                 :: Double
+                return $ floor d :: IO Int
+        else (return 1)
+
+    -- Perturb coordinates "reps" times
+    mvec <- U.thaw particle
+    replicateM_ reps $ UM.unsafeModify mvec (`perturbSingle` rh) k
+    perturbed <- U.unsafeFreeze mvec
+
     -- NB (jtobin):
     --   note that we can't use unsafeThaw here as the particle vector could
     --   still be used elsewhere (i.e. in the non-accepting branch of
     --   a Metropolis update).
-    perturbed <- do
-      mvec <- U.thaw particle
-      UM.unsafeModify mvec (`perturbSingle` rh) k
-      U.unsafeFreeze mvec
 
     return (0.0, perturbed)
   where
