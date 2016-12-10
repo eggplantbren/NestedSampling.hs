@@ -152,7 +152,7 @@ chooseCopy :: Int -> Int -> Gen RealWorld -> IO Int
 chooseCopy ref n = loop where
   loop prng = do
     index <- MWC.uniformR (0, n - 1) prng
-    if   index == ref
+    if   index == ref && n > 1
     then loop prng
     else return $! index
 
