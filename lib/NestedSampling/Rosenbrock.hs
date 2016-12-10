@@ -11,7 +11,7 @@ import System.Random.MWC as MWC (Gen, uniform, uniformR)
 
 -- c.f. the one in DNest4, which is 50 dimensional
 numDimensions :: Int
-numDimensions = 10
+numDimensions = 50
 
 -- Log likelihood function
 logLikelihood :: U.Vector Double -> Double
@@ -38,9 +38,10 @@ perturb particle gen = do
     reps <-
         if moreThanOne then
             do
-                u <- MWC.uniform gen                        :: IO Double
-                let d = 1.0 + 10.0**(2.0*u)                 :: Double
-                return $ floor d :: IO Int
+                u <- MWC.uniform gen                              :: IO Double
+                let most = 2.0 * fromIntegral (U.length particle) :: Double
+                    d = 1.0 + most**u                             :: Double
+                return $ floor d                                  :: IO Int
         else (return 1)
 
     -- Perturb coordinates "reps" times

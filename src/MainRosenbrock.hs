@@ -6,9 +6,9 @@ main :: IO ()
 main = withSystemRandom . asGenIO $ \gen -> do
 
     -- Set the properties of the run you want to do
-    let numParticles  = 1000     :: Int
-        mcmcSteps     = 100      :: Int
-        maxDepth      = 80.0     :: Double
+    let numParticles  = 1000    :: Int
+        mcmcSteps     = 100     :: Int
+        maxDepth      = 400.0   :: Double
         numIterations = floor $ maxDepth * (fromIntegral numParticles) :: Int
 
     -- Create the sampler
