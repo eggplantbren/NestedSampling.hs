@@ -11,7 +11,7 @@ import System.Random.MWC as MWC (Gen, uniform, uniformR)
 
 -- c.f. the one in DNest4, which is 50 dimensional
 numDimensions :: Int
-numDimensions = 50
+numDimensions = 10
 
 -- Log likelihood function
 logLikelihood :: U.Vector Double -> Double
