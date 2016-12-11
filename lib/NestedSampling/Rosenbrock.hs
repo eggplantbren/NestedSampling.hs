@@ -1,6 +1,5 @@
 module NestedSampling.Rosenbrock where
 
-import Control.Monad (replicateM_)
 import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
@@ -30,23 +29,13 @@ fromPrior gen = do
 -- | Perturb a particle, returning the perturbed particle and a logH value.
 perturb :: U.Vector Double -> Gen RealWorld -> IO (Double, U.Vector Double)
 perturb particle gen = do
+    -- Choose a coordinate to move
     k  <- MWC.uniformR (0, U.length particle - 1) gen
     rh <- randh gen
 
-    -- Decide whether to do 1 repetition or more
-    moreThanOne <- MWC.uniform gen                          :: IO Bool
-    reps <-
-        if moreThanOne then
-            do
-                u <- MWC.uniform gen                              :: IO Double
-                let most = 2.0 * fromIntegral (U.length particle) :: Double
-                    d = 1.0 + most**u                             :: Double
-                return $ floor d                                  :: IO Int
-        else (return 1)
-
-    -- Perturb coordinates "reps" times
+    -- Perturb the coordinate "reps" times
     mvec <- U.thaw particle
-    replicateM_ reps $ UM.unsafeModify mvec (`perturbSingle` rh) k
+    UM.unsafeModify mvec (`perturbSingle` rh) k
     perturbed <- U.unsafeFreeze mvec
 
     -- NB (jtobin):
@@ -57,5 +46,5 @@ perturb particle gen = do
     return (0.0, perturbed)
   where
     perturbSingle :: Double -> Double -> Double
-    perturbSingle x rh = (`wrap` (-10.0, 10.0)) $ x + 20.0*rh
+    perturbSingle x rh = wrap (x + 20.0*rh) (-10.0, 10.0)
 
