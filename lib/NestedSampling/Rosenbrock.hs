@@ -26,25 +26,41 @@ fromPrior gen = do
   x <- U.replicateM numDimensions (uniform gen)
   return $ U.map (\x' -> -10.0 + 20.0*x') x
 
--- | Perturb a particle, returning the perturbed particle and a logH value.
+-- Perturber (returns logH and perturbed value)
 perturb :: U.Vector Double -> Gen RealWorld -> IO (Double, U.Vector Double)
 perturb particle gen = do
-    -- Choose a coordinate to move
-    k  <- MWC.uniformR (0, U.length particle - 1) gen
-    rh <- randh gen
-
-    -- Perturb the coordinate "reps" times
-    mvec <- U.thaw particle
-    UM.unsafeModify mvec (`perturbSingle` rh) k
-    perturbed <- U.unsafeFreeze mvec
-
-    -- NB (jtobin):
-    --   note that we can't use unsafeThaw here as the particle vector could
-    --   still be used elsewhere (i.e. in the non-accepting branch of
-    --   a Metropolis update).
-
+    justOne <- MWC.uniform gen :: IO Bool
+    reps <- do
+              u <- MWC.uniform gen :: IO Double
+              let extra = floor ((fromIntegral $ U.length particle)**u)
+              return (if justOne then 1 else (1 + extra)) :: IO Int
+    perturbed <- perturbCoord reps particle gen
     return (0.0, perturbed)
-  where
-    perturbSingle :: Double -> Double -> Double
-    perturbSingle x rh = wrap (x + 20.0*rh) (-10.0, 10.0)
+
+-- | Perturb a single coordinate 'reps' times
+perturbCoord :: Int
+             -> U.Vector Double
+             -> Gen RealWorld
+             -> IO (U.Vector Double)
+perturbCoord reps particle gen
+    | reps <= 0 = return particle
+    | otherwise = do
+        -- Choose a coordinate to move
+        k  <- MWC.uniformR (0, U.length particle - 1) gen
+        rh <- randh gen
+
+        -- Perturb the coordinate "reps" times
+        mvec <- U.thaw particle
+        UM.unsafeModify mvec (`perturbSingle` rh) k
+        perturbed <- U.unsafeFreeze mvec
+
+        -- NB (jtobin):
+        --   We can't use unsafeThaw here as the particle vector could
+        --   still be used elsewhere (i.e. in the non-accepting branch of
+        --   a Metropolis update).
+
+        perturbCoord (reps - 1) perturbed gen
+      where
+        perturbSingle :: Double -> Double -> Double
+        perturbSingle x rh = wrap (x + 20.0*rh) (-10.0, 10.0)
 
