@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE BangPatterns #-}
 
 module NestedSampling.Sampler (
     initialize
@@ -187,7 +188,7 @@ metropolisUpdate threshold ((ll, tb), x) logLikelihood perturber gen = do
 
     -- Generate tiebreaker for proposal
     rh <- randh gen
-    let tbProposal = wrap (tb + rh) (0.0, 1.0)
+    let !tbProposal = wrap (tb + rh) (0.0, 1.0)
 
     -- Check whether proposal is above threshold
     let check1 = llProposal > (fst threshold)
