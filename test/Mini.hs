@@ -1,6 +1,6 @@
+import Model.SpikeSlab
 import NestedSampling.Sampler
-import NestedSampling.SpikeSlab
-import System.Random.MWC hiding (initialize)
+import System.Random.MWC (withSystemRandom, asGenIO)
 
 main :: IO ()
 main = withSystemRandom . asGenIO $ \gen -> do
@@ -8,7 +8,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
     origin <- initialize 1000 100 fromPrior logLikelihood perturb gen
 
     -- Do 100000 NS iterations (this'll go to a depth of 100 nats)
-    _ <- nestedSampling 100000 origin gen
+    _ <- nestedSampling 1000 origin gen
 
     return ()
 

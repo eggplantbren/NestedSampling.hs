@@ -1,4 +1,4 @@
-module NestedSampling.Rosenbrock where
+module Model.Rosenbrock where
 
 import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector.Unboxed as U
@@ -63,4 +63,5 @@ perturbCoord reps particle gen
       where
         perturbSingle :: Double -> Double -> Double
         perturbSingle x rh = wrap (x + 20.0*rh) (-10.0, 10.0)
+
 

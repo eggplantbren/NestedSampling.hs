@@ -1,5 +1,5 @@
 name:                NestedSampling-hs
-version:             0.3.0
+version:             0.3.1
 synopsis:            Classic Nested Sampling.
 license:             MIT
 license-file:        LICENSE
@@ -7,7 +7,7 @@ author:              Brendon J. Brewer
 maintainer:          bj.brewer@auckland.ac.nz
 category:            Math
 build-type:          Simple
-cabal-version:       >=1.10
+cabal-version:       >= 1.10
 description:
   This is a Haskell implementation of the classic Nested Sampling algorithm
   introduced by John Skilling. You can use it for Bayesian inference,
@@ -19,9 +19,7 @@ library
   ghc-options:
     -Wall -O2
   exposed-modules:
-      NestedSampling.Rosenbrock
-    , NestedSampling.Sampler
-    , NestedSampling.SpikeSlab
+      NestedSampling.Sampler
     , NestedSampling.Utils
   build-depends:
       base >= 4 && < 6
@@ -31,36 +29,51 @@ library
     , transformers
     , vector
 
-executable ns-example
-  hs-source-dirs:    src
-  Main-is:           Main.hs
+Test-suite spikeslab
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    test
+  Main-is:           SpikeSlab.hs
   default-language:  Haskell2010
   ghc-options:
     -O2 -Wall
+  other-modules:
+      Model.SpikeSlab
   build-depends:
       base
     , NestedSampling-hs
     , mwc-random
+    , primitive
+    , vector
 
-executable rosenbrock-example
-  hs-source-dirs:    src
-  Main-is:           MainRosenbrock.hs
+Test-suite rosenbrock
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    test
+  Main-is:           Rosenbrock.hs
   default-language:  Haskell2010
   ghc-options:
     -O2 -Wall
+  other-modules:
+      Model.Rosenbrock
   build-depends:
       base
     , NestedSampling-hs
     , mwc-random
+    , primitive
+    , vector
 
-executable ns-mini-example
-  hs-source-dirs:    src
+Test-suite mini-spikeslab
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    test
   Main-is:           Mini.hs
   default-language:  Haskell2010
   ghc-options:
     -O2 -fprof-auto -rtsopts
+  other-modules:
+      Model.SpikeSlab
   build-depends:
       base
     , NestedSampling-hs
     , mwc-random
+    , primitive
+    , vector
 

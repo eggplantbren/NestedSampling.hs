@@ -1,5 +1,5 @@
+import Model.Rosenbrock
 import NestedSampling.Sampler
-import NestedSampling.Rosenbrock
 import System.Random.MWC hiding (initialize)
 
 main :: IO ()
