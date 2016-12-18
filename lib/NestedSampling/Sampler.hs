@@ -75,11 +75,12 @@ instance Show Sampler where
 render :: Sampler -> T.Text
 render Sampler {..} =
     sformat
-      (int % "," % float % "," % string % "," % float % "," % float)
-      samplerIter (negate (k / n)) sllworst samplerLogZ samplerInfo
+      (int % "," % float % "," % float % "," % string % "," % float % "," % float)
+      samplerIter (negate (k / n)) logPriorWeight sllworst samplerLogZ samplerInfo
   where
     k = fromIntegral samplerIter
     n = fromIntegral samplerDim
+    logPriorWeight = - k / n + log (exp (recip n) - 1.0)
     llworst = do
       (_, (llw, _), _) <- PSQ.findMin samplerParticles
       return llw
@@ -259,7 +260,7 @@ writeToFile LoggingOptions {..} mode sampler particle = do
       Just file -> do
         sampleInfo <- openFile file mode
         when (mode == WriteMode) $
-          T.hPutStrLn sampleInfo "n,ln_x,ln_l,ln_z,h"
+          T.hPutStrLn sampleInfo "n,ln_x,ln_prior_weight,ln_l,ln_prior_weight,ln_z,h"
 
         T.hPutStrLn sampleInfo $ render sampler
         hClose sampleInfo

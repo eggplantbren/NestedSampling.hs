@@ -25,8 +25,9 @@ can always be found in the `test` directory.
 Running any of these examples will log sampling progress to stdout and also
 dump output information to a couple of CSV files:
 
-* `nested_sampling_info.csv` includes log x, log likelihood, log
-  evidence, and entropy information by sampler iteration.
+* `nested_sampling_info.csv` includes log x, log prior weight,
+  log likelihood, current log evidence estimate,
+  and current information estimate by sampler iteration.
 * `nested_sampling_parameters.csv` includes parameter information (where one
   line = one sample).
 
