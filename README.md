@@ -3,29 +3,29 @@ NestedSampling.hs
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/eggplantbren/NestedSampling.hs/blob/master/LICENSE)
 
-This is a Haskell implementation of the classic Nested Sampling algorithm
-introduced by John Skilling. You can use it for Bayesian inference,
-statistical mechanics, and optimisation applications.
-
 (c) 2016 Brendon J. Brewer and Jared Tobin
 
-LICENSE: MIT. See the LICENSE file for details.
+This is a Haskell implementation of the classic [Nested
+Sampling](https://en.wikipedia.org/wiki/Nested_sampling_algorithm) algorithm
+introduced by John Skilling. You can use it for Bayesian inference, statistical
+mechanics, and optimisation applications.
 
-You can compile the library and run the demo with Stack:
+There are a few examples included that you can run using
+[Stack](https://docs.haskellstack.org/) as follows:
 
 ```
-stack build
-stack exec ns-example
+$ stack test NestedSampling-hs:test:spikeslab
+$ stack test NestedSampling-hs:test:rosenbrock
 ```
 
-This will run the SpikeSlab example. The output files are
-`sample.txt` (parameters, one line=one sample) and `sample_info.txt`
-(log prior weight and log likelihood).
-Posterior weight is proportional to prior weight times likelihood, and it's
-your responsibility to calculate that from the information in the output files.
+.. and so on.  Check the .cabal file for a list of examples, the code for which
+can always be found in the `test` directory.
 
-There is also a 10-dimensional Rosenbrock example, which you can run using
-```
-stack exec rosenbrock-example
-```
+Running any of these examples will log sampling progress to stdout and also
+dump output information to a couple of files:
+
+* `nested_sampling_info.csv` includes log prior weight, log likelihood, log
+  evidence, and entropy information by sampler iteration.
+* `nested_sampling_parameters.dat` includes parameter information (where one
+  line = one sample).
 
