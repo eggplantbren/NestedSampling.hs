@@ -260,7 +260,7 @@ writeToFile LoggingOptions {..} mode sampler particle = do
       Just file -> do
         sampleInfo <- openFile file mode
         when (mode == WriteMode) $
-          T.hPutStrLn sampleInfo "n,ln_x,ln_prior_weight,ln_l,ln_prior_weight,ln_z,h"
+          T.hPutStrLn sampleInfo "n,ln_x,ln_prior_weight,ln_l,ln_z,h"
 
         T.hPutStrLn sampleInfo $ render sampler
         hClose sampleInfo
