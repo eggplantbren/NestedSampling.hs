@@ -7,7 +7,8 @@ NestedSampling.hs
 
 This is a Haskell implementation of the classic [Nested
 Sampling](https://en.wikipedia.org/wiki/Nested_sampling_algorithm) algorithm
-introduced by John Skilling. You can use it for Bayesian inference, statistical
+[introduced by John Skilling](http://projecteuclid.org/download/pdf_1/euclid.ba/1340370944).
+You can use it for Bayesian inference, statistical
 mechanics, and optimisation applications.
 
 There are a few examples included that you can run using
@@ -24,7 +25,7 @@ can always be found in the `test` directory.
 Running any of these examples will log sampling progress to stdout and also
 dump output information to a couple of CSV files:
 
-* `nested_sampling_info.csv` includes log prior weight, log likelihood, log
+* `nested_sampling_info.csv` includes log x, log likelihood, log
   evidence, and entropy information by sampler iteration.
 * `nested_sampling_parameters.csv` includes parameter information (where one
   line = one sample).
