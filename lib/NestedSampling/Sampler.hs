@@ -46,16 +46,20 @@ instance Show Sampler where
   show Sampler {..} = mconcat [
         "Iteration " ++ show samplerIter ++ ". "
       , "ln(X) = " ++ show (negate (k / n)) ++ ". "
-      , "ln(L) = " ++ show llworst ++ ".\n"
+      , "ln(L) = " ++ sllworst ++ ".\n"
       , "ln(Z) = " ++ show samplerLogZ ++ ", "
       , "H = " ++ show samplerInfo ++ " nats.\n"
       ]
     where
       k = fromIntegral samplerIter
       n = fromIntegral samplerDim
-      (_, (llworst, _), _) = case PSQ.findMin samplerParticles of
-        Nothing -> error "Sampler: no particles"
-        Just p  -> p
+      llworst = do
+        (_, (llw, _), _) <- PSQ.findMin samplerParticles
+        return llw
+
+      sllworst = case llworst of
+        Nothing -> "-"
+        Just p  -> show p
 
 -- | Initialize a sampler with the provided dimension, number of steps, prior,
 --   perturbation function, and log-likelihood.
