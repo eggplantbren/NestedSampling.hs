@@ -4,12 +4,18 @@
 {-# LANGUAGE BangPatterns #-}
 
 module NestedSampling.Sampler (
+    -- * sampling functions
     initialize
   , nestedSampling
 
+    -- * sampling types
   , Sampler(..)
   , Particle
   , Particles
+
+    -- * logging
+  , LoggingOptions(..)
+  , defaultLogging
   ) where
 
 import Control.Monad
@@ -82,6 +88,24 @@ render Sampler {..} =
       Nothing -> "NA"
       Just p  -> show p
 
+data LoggingOptions = LoggingOptions {
+    logSamplerFile  :: Maybe FilePath
+  , logParticleFile :: Maybe FilePath
+  , logProgress     :: Bool
+  }
+
+-- NB (jtobin):
+--   Possibly best to use 'Nothing' as default values for sampler/particle
+--   information and let users overwrite these if desired.
+
+-- | Default logging options for samplers.
+defaultLogging :: LoggingOptions
+defaultLogging = LoggingOptions {
+    logSamplerFile  = Just "nested_sampling_info.csv"
+  , logParticleFile = Just "nested_sampling_particle.dat"
+  , logProgress     = True
+  }
+
 -- | Initialize a sampler with the provided dimension, number of steps, prior,
 --   perturbation function, and log-likelihood.
 initialize
@@ -93,12 +117,9 @@ initialize
   -> Gen RealWorld                  -- ^ PRNG
   -> IO Sampler
 initialize n m prior logLikelihood samplerPerturber gen = do
-    putStr $ "Generating " ++ show samplerDim ++ " particles from the prior..."
-    hFlush stdout
     particles <- replicateM samplerDim (prior gen)
     tbs       <- replicateM samplerDim (MWC.uniform gen)
 
-    putStrLn "done.\n"
     let lls               = fmap logLikelihood particles
         lltbs             = zip lls tbs
         samplerParticles  = PSQ.fromList (zip3 [0..] lltbs particles)
@@ -112,22 +133,24 @@ initialize n m prior logLikelihood samplerPerturber gen = do
     samplerSteps = if m <= 0 then 0 else m
 
 -- | Perform nested sampling for the specified number of iterations.
-nestedSampling :: Int -> Sampler -> Gen RealWorld -> IO Sampler
-nestedSampling = loop where
+nestedSampling
+  :: LoggingOptions -> Int -> Sampler -> Gen RealWorld -> IO Sampler
+nestedSampling logopts = loop where
   loop n sampler gen
     | n <= 0    = return sampler
     | otherwise = do
-        mnext <- runMaybeT $ nestedSamplingIteration sampler gen
+        mnext <- runMaybeT $ nestedSamplingIteration logopts sampler gen
         case mnext of
           Nothing   -> error "nestedSamplingIterations: no particles found"
           Just next -> loop (n - 1) next gen
 {-# INLINE nestedSampling #-}
 
 -- | Perform a single nested sampling iteration.
-nestedSamplingIteration :: Sampler -> Gen RealWorld -> MaybeT IO Sampler
-nestedSamplingIteration Sampler {..} gen = do
+nestedSamplingIteration
+  :: LoggingOptions -> Sampler -> Gen RealWorld -> MaybeT IO Sampler
+nestedSamplingIteration LoggingOptions {..} Sampler {..} gen = do
   (_, lltbworst, worst) <- hoistMaybe (PSQ.findMin samplerParticles)
-  particles            <- updateParticles Sampler {..} gen
+  particles <- updateParticles Sampler {..} gen
 
   let k = fromIntegral samplerIter
       n = fromIntegral samplerDim
@@ -141,10 +164,10 @@ nestedSamplingIteration Sampler {..} gen = do
         - samplerLogZ'
 
   lift $ do
-    when (samplerIter `mod` samplerDim == 0) $
+    when (logProgress && (samplerIter `mod` samplerDim == 0)) $
       print Sampler {..}
     let iomode = if samplerIter /= 1 then AppendMode else WriteMode
-    writeToFile iomode Sampler {..} worst
+    writeToFile LoggingOptions {..} iomode Sampler {..} worst
 
   return $! Sampler {
       samplerParticles = particles
@@ -228,20 +251,26 @@ metropolisUpdate threshold ((ll, tb), x) logLikelihood perturber gen = do
       else ((ll, tb), x)
 {-# INLINE metropolisUpdate #-}
 
--- Save a particle to disk
-writeToFile :: IOMode -> Sampler -> Particle -> IO ()
-writeToFile mode sampler particle = do
-    sampleInfo <- openFile "sample_info.txt" mode
+-- | Write sampler/particle information to disk.
+writeToFile :: LoggingOptions -> IOMode -> Sampler -> Particle -> IO ()
+writeToFile LoggingOptions {..} mode sampler particle = do
+    case logSamplerFile of
+      Nothing   -> return ()
+      Just file -> do
+        sampleInfo <- openFile file mode
+        when (mode == WriteMode) $
+          T.hPutStrLn sampleInfo "n,ln_x,ln_l,ln_z,h"
 
-    when (mode == WriteMode) $
-      T.hPutStrLn sampleInfo "n,ln_x,ln_l,ln_z,h"
+        T.hPutStrLn sampleInfo $ render sampler
+        hClose sampleInfo
 
-    T.hPutStrLn sampleInfo $ render sampler
-    hClose sampleInfo
-
-    sample <- openFile "sample.txt" mode
-    hPutStrLn sample $ U.foldl' (\str x -> str ++ " " ++ show x) [] particle
-    hClose sample
+    case logParticleFile of
+      Nothing   -> return ()
+      Just file -> do
+        sample <- openFile file mode
+        hPutStrLn sample $
+          U.foldl' (\str x -> str ++ " " ++ show x) [] particle
+        hClose sample
 
 -- | Hoist a 'Maybe' into a 'MaybeT'.
 hoistMaybe :: Monad m => Maybe a -> MaybeT m a

@@ -8,7 +8,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
     origin <- initialize 1000 100 fromPrior logLikelihood perturb gen
 
     -- Do 100000 NS iterations (this'll go to a depth of 100 nats)
-    _ <- nestedSampling 1000 origin gen
+    _ <- nestedSampling defaultLogging 1000 origin gen
 
     return ()
 

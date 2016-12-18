@@ -16,7 +16,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
                 numParticles mcmcSteps fromPrior logLikelihood perturb gen
 
     -- Do NS iterations until maxDepth is reached
-    _ <- nestedSampling numIterations origin gen
+    _ <- nestedSampling defaultLogging numIterations origin gen
 
     return ()
 
