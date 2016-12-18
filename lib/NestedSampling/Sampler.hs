@@ -89,9 +89,9 @@ render Sampler {..} =
       Just p  -> show p
 
 data LoggingOptions = LoggingOptions {
-    logSamplerFile  :: Maybe FilePath
-  , logParticleFile :: Maybe FilePath
-  , logProgress     :: Bool
+    logSamplerFile    :: Maybe FilePath
+  , logParametersFile :: Maybe FilePath
+  , logProgress       :: Bool
   }
 
 -- NB (jtobin):
@@ -101,9 +101,9 @@ data LoggingOptions = LoggingOptions {
 -- | Default logging options for samplers.
 defaultLogging :: LoggingOptions
 defaultLogging = LoggingOptions {
-    logSamplerFile  = Just "nested_sampling_info.csv"
-  , logParticleFile = Just "nested_sampling_parameters.dat"
-  , logProgress     = True
+    logSamplerFile    = Just "nested_sampling_info.csv"
+  , logParametersFile = Just "nested_sampling_parameters.csv"
+  , logProgress       = True
   }
 
 -- | Initialize a sampler with the provided dimension, number of steps, prior,
@@ -264,12 +264,12 @@ writeToFile LoggingOptions {..} mode sampler particle = do
         T.hPutStrLn sampleInfo $ render sampler
         hClose sampleInfo
 
-    case logParticleFile of
+    case logParametersFile of
       Nothing   -> return ()
       Just file -> do
         sample <- openFile file mode
         hPutStrLn sample $
-          U.foldl' (\str x -> str ++ " " ++ show x) [] particle
+          drop 1 $ U.foldl' (\str x -> str ++ "," ++ show x) [] particle
         hClose sample
 
 -- | Hoist a 'Maybe' into a 'MaybeT'.
