@@ -102,7 +102,7 @@ data LoggingOptions = LoggingOptions {
 defaultLogging :: LoggingOptions
 defaultLogging = LoggingOptions {
     logSamplerFile  = Just "nested_sampling_info.csv"
-  , logParticleFile = Just "nested_sampling_particle.dat"
+  , logParticleFile = Just "nested_sampling_parameters.dat"
   , logProgress     = True
   }
 
