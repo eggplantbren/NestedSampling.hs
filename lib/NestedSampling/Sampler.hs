@@ -16,6 +16,7 @@ module NestedSampling.Sampler (
     -- * logging
   , LoggingOptions(..)
   , defaultLogging
+  , noLogging
   ) where
 
 import Control.Monad
@@ -95,15 +96,19 @@ data LoggingOptions = LoggingOptions {
   , logProgress       :: Bool
   }
 
--- NB (jtobin):
---   Possibly best to use 'Nothing' as default values for sampler/particle
---   information and let users overwrite these if desired.
-
 -- | Default logging options for samplers.
 defaultLogging :: LoggingOptions
 defaultLogging = LoggingOptions {
     logSamplerFile    = Just "nested_sampling_info.csv"
   , logParametersFile = Just "nested_sampling_parameters.csv"
+  , logProgress       = True
+  }
+
+-- | Quiet (stdout-only) logging options for samplers.
+noLogging :: LoggingOptions
+noLogging = LoggingOptions {
+    logSamplerFile    = Nothing
+  , logParametersFile = Nothing
   , logProgress       = True
   }
 
