@@ -19,6 +19,7 @@ import Control.Monad.Trans.Maybe
 import Data.IntPSQ (IntPSQ)
 import qualified Data.IntPSQ as PSQ
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.Vector.Unboxed as U
 import Formatting
 import NestedSampling.Utils
@@ -61,12 +62,14 @@ instance Show Sampler where
         return llw
 
       sllworst = case llworst of
-        Nothing -> "-"
+        Nothing -> "NA"
         Just p  -> show p
 
+-- | Render a Sampler as a text value.
 render :: Sampler -> T.Text
 render Sampler {..} =
-    sformat (int % "," % float % "," % string % "," % float % "," % float)
+    sformat
+      (int % "," % float % "," % string % "," % float % "," % float)
       samplerIter (negate (k / n)) sllworst samplerLogZ samplerInfo
   where
     k = fromIntegral samplerIter
@@ -76,7 +79,7 @@ render Sampler {..} =
       return llw
 
     sllworst = case llworst of
-      Nothing -> "-"
+      Nothing -> "NA"
       Just p  -> show p
 
 -- | Initialize a sampler with the provided dimension, number of steps, prior,
@@ -138,9 +141,10 @@ nestedSamplingIteration Sampler {..} gen = do
         - samplerLogZ'
 
   lift $ do
-    when (samplerIter `mod` samplerDim == 0) $ print Sampler {..}
+    when (samplerIter `mod` samplerDim == 0) $
+      print Sampler {..}
     let iomode = if samplerIter /= 1 then AppendMode else WriteMode
-    writeToFile iomode (logPriorWeight, lworst) worst
+    writeToFile iomode Sampler {..} worst
 
   return $! Sampler {
       samplerParticles = particles
@@ -225,10 +229,14 @@ metropolisUpdate threshold ((ll, tb), x) logLikelihood perturber gen = do
 {-# INLINE metropolisUpdate #-}
 
 -- Save a particle to disk
-writeToFile :: IOMode -> (Double, Double) -> Particle -> IO ()
-writeToFile mode (logw, logl) particle = do
+writeToFile :: IOMode -> Sampler -> Particle -> IO ()
+writeToFile mode sampler particle = do
     sampleInfo <- openFile "sample_info.txt" mode
-    hPutStrLn sampleInfo $ (show logw) ++ " " ++ (show logl)
+
+    when (mode == WriteMode) $
+      T.hPutStrLn sampleInfo "n,ln_x,ln_l,ln_z,h"
+
+    T.hPutStrLn sampleInfo $ render sampler
     hClose sampleInfo
 
     sample <- openFile "sample.txt" mode
