@@ -23,9 +23,11 @@ library
     , NestedSampling.Utils
   build-depends:
       base >= 4 && < 6
+    , formatting
     , mwc-random
     , primitive
     , psqueues
+    , text
     , transformers
     , vector
 

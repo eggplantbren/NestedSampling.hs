@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE BangPatterns #-}
 
@@ -17,7 +18,9 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe
 import Data.IntPSQ (IntPSQ)
 import qualified Data.IntPSQ as PSQ
+import qualified Data.Text as T
 import qualified Data.Vector.Unboxed as U
+import Formatting
 import NestedSampling.Utils
 import System.IO
 import System.Random.MWC (Gen)
@@ -60,6 +63,21 @@ instance Show Sampler where
       sllworst = case llworst of
         Nothing -> "-"
         Just p  -> show p
+
+render :: Sampler -> T.Text
+render Sampler {..} =
+    sformat (int % "," % float % "," % string % "," % float % "," % float)
+      samplerIter (negate (k / n)) sllworst samplerLogZ samplerInfo
+  where
+    k = fromIntegral samplerIter
+    n = fromIntegral samplerDim
+    llworst = do
+      (_, (llw, _), _) <- PSQ.findMin samplerParticles
+      return llw
+
+    sllworst = case llworst of
+      Nothing -> "-"
+      Just p  -> show p
 
 -- | Initialize a sampler with the provided dimension, number of steps, prior,
 --   perturbation function, and log-likelihood.
