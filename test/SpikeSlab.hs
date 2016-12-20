@@ -4,11 +4,20 @@ import System.Random.MWC (withSystemRandom, asGenIO)
 
 main :: IO ()
 main = withSystemRandom . asGenIO $ \gen -> do
-    -- Create a sampler with 1000 particles and 100 MCMC steps per NS iteration
-    origin <- initialize 1000 100 fromPrior logLikelihood perturb gen
 
-    -- Do 100000 NS iterations (this'll go to a depth of 100 nats)
-    _ <- nestedSampling defaultLogging 100000 origin gen
+    -- Set the properties of the run you want to do
+    let numParticles  = 1000    :: Int
+        mcmcSteps     = 100     :: Int
+        maxDepth      = 100.0   :: Double
+        numIterations = floor $ maxDepth * (fromIntegral numParticles) :: Int
+
+    -- Create the sampler
+    origin <- initialize
+                numParticles mcmcSteps fromPrior logLikelihood perturb gen
+
+    -- Do NS iterations until maxDepth is reached
+    _ <- nestedSampling defaultLogging numIterations origin gen
+
 
     return ()
 
