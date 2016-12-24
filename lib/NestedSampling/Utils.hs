@@ -40,5 +40,5 @@ randh gen = do
   where
     transform a b n =
       let t = a/sqrt (- (log b))
-      in  10.0**(1.5 - 3.0*(abs t))*n
+      in  10.0**(1.5 - 3.0 * abs t)*n
 

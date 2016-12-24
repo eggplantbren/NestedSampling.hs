@@ -8,8 +8,8 @@ NestedSampling.hs
 This is a Haskell implementation of the classic [Nested
 Sampling](https://en.wikipedia.org/wiki/Nested_sampling_algorithm) algorithm
 [introduced by John Skilling](http://projecteuclid.org/download/pdf_1/euclid.ba/1340370944).
-You can use it for Bayesian inference, statistical
-mechanics, and optimisation applications.
+You can use it for Bayesian inference, statistical mechanics, and optimisation
+applications.
 
 There are a few examples included that you can run using
 [Stack](https://docs.haskellstack.org/) as follows:
