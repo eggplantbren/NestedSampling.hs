@@ -88,6 +88,7 @@ render Sampler {..} =
 
 data LoggingOptions = LoggingOptions {
     logSamplerFile    :: Maybe FilePath
+  , logParametersFile :: Maybe FilePath
   , logProgress       :: Bool
   }
 
@@ -95,6 +96,7 @@ data LoggingOptions = LoggingOptions {
 defaultLogging :: LoggingOptions
 defaultLogging = LoggingOptions {
     logSamplerFile    = Just "nested_sampling_info.csv"
+  , logParametersFile = Just "nested_sampling_parameters.csv"
   , logProgress       = True
   }
 
@@ -102,6 +104,7 @@ defaultLogging = LoggingOptions {
 noLogging :: LoggingOptions
 noLogging = LoggingOptions {
     logSamplerFile    = Nothing
+  , logParametersFile = Nothing
   , logProgress       = True
   }
 
@@ -133,7 +136,8 @@ initialize n m prior logLikelihood samplerPerturber gen = do
 
 -- | Perform nested sampling for the specified number of iterations.
 nestedSampling
-  :: LoggingOptions -> Int -> Sampler a -> Gen RealWorld -> IO (Sampler a)
+  :: Show a
+  => LoggingOptions -> Int -> Sampler a -> Gen RealWorld -> IO (Sampler a)
 nestedSampling logopts = loop where
   loop n sampler gen
     | n <= 0    = return sampler
@@ -146,9 +150,10 @@ nestedSampling logopts = loop where
 
 -- | Perform a single nested sampling iteration.
 nestedSamplingIteration
-  :: LoggingOptions -> Sampler a -> Gen RealWorld -> MaybeT IO (Sampler a)
+  :: Show a
+  => LoggingOptions -> Sampler a -> Gen RealWorld -> MaybeT IO (Sampler a)
 nestedSamplingIteration LoggingOptions {..} Sampler {..} gen = do
-  (_, lltbworst, _) <- hoistMaybe (PSQ.findMin samplerParticles)
+  (_, lltbworst, worst) <- hoistMaybe (PSQ.findMin samplerParticles)
   particles <- updateParticles Sampler {..} gen
 
   let k = fromIntegral samplerIter
@@ -166,7 +171,7 @@ nestedSamplingIteration LoggingOptions {..} Sampler {..} gen = do
     when (logProgress && (samplerIter `mod` samplerDim == 0)) $
       print Sampler {..}
     let iomode = if samplerIter /= 1 then AppendMode else WriteMode
-    writeToFile LoggingOptions {..} iomode Sampler {..}
+    writeToFile LoggingOptions {..} iomode Sampler {..} worst
 
   return $! Sampler {
       samplerParticles = particles
@@ -251,17 +256,26 @@ metropolisUpdate threshold ((ll, tb), x) logLikelihood perturber gen = do
 {-# INLINE metropolisUpdate #-}
 
 -- | Write sampler/particle information to disk.
-writeToFile :: LoggingOptions -> IOMode -> Sampler a -> IO ()
-writeToFile LoggingOptions {..} mode sampler =
-    case logSamplerFile of
-      Nothing   -> return ()
-      Just file -> do
-        sampleInfo <- openFile file mode
-        when (mode == WriteMode) $
-          T.hPutStrLn sampleInfo "n,ln_x,ln_prior_weight,ln_l,ln_z,h"
+writeToFile
+  :: Show a
+  => LoggingOptions -> IOMode -> Sampler a -> a -> IO ()
+writeToFile LoggingOptions {..} mode sampler particle = do
+  case logSamplerFile of
+    Nothing   -> return ()
+    Just file -> do
+      sampleInfo <- openFile file mode
+      when (mode == WriteMode) $
+        T.hPutStrLn sampleInfo "n,ln_x,ln_prior_weight,ln_l,ln_z,h"
 
-        T.hPutStrLn sampleInfo $ render sampler
-        hClose sampleInfo
+      T.hPutStrLn sampleInfo $ render sampler
+      hClose sampleInfo
+
+  case logParametersFile of
+    Nothing   -> return ()
+    Just file -> do
+      sample <- openFile file mode
+      hPrint sample particle
+      hClose sample
 
 -- | Hoist a 'Maybe' into a 'MaybeT'.
 hoistMaybe :: Monad m => Maybe a -> MaybeT m a
