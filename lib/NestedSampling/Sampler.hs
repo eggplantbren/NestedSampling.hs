@@ -274,7 +274,8 @@ writeToFile LoggingOptions {..} mode sampler particle = do
     Nothing   -> return ()
     Just file -> do
       sample <- openFile file mode
-      hPrint sample particle
+      hPutStrLn sample $
+        filter (`notElem` ("fromList[]" :: String)) (show particle)
       hClose sample
 
 -- | Hoist a 'Maybe' into a 'MaybeT'.
