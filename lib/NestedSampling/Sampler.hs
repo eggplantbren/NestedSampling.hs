@@ -193,8 +193,8 @@ nestedSamplingIteration LoggingOptions {..} Sampler {..} gen = do
     , samplerIter      = samplerIter + 1
     , samplerLogZ      = samplerLogZ'
     , samplerInfo      = samplerInfo'
-    , samplerAccepts   = if printing then 0 else (samplerAccepts + accepts)
-    , samplerTries     = if printing then 0 else (samplerTries + samplerSteps)
+    , samplerAccepts   = if printing then 0 else samplerAccepts + accepts
+    , samplerTries     = if printing then 0 else samplerTries + samplerSteps
     , ..
     }
 {-# INLINE nestedSamplingIteration #-}
@@ -214,7 +214,7 @@ updateParticles Sampler {..} gen = do
 
       (_, updated) = PSQ.alterMin replace samplerParticles
 
-  return $! (updated, c)
+  return (updated, c)
 {-# INLINE updateParticles #-}
 
 -- | Choose a number in the supplied range that is different from the supplied
