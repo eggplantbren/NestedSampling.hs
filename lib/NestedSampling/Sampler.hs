@@ -212,7 +212,7 @@ updateParticles Sampler {..} gen = do
         Just (j, _, _) -> ((), Just (j, lltb', p'))
         Nothing        -> ((), Nothing)
 
-      (_, updated) = PSQ.alterMin replace samplerParticles
+      (_, !updated) = PSQ.alterMin replace samplerParticles
 
   return (updated, c)
 {-# INLINE updateParticles #-}
