@@ -36,7 +36,10 @@ import qualified System.Random.MWC as MWC hiding (initialize)
 data Lltb = Lltb {-# UNPACK #-} !Double {-# UNPACK #-} !Double
   deriving (Eq, Ord)
 
+-- The particles, arranged into a PSQ
 type Particles a = IntPSQ Lltb a
+
+-- Perturbation function for model type a
 type Perturber a = a -> Gen RealWorld -> IO (Double, a)
 
 data Sampler a = Sampler {
@@ -48,6 +51,8 @@ data Sampler a = Sampler {
   , samplerIter       :: {-# UNPACK #-} !Int
   , samplerLogZ       :: {-# UNPACK #-} !Double
   , samplerInfo       :: {-# UNPACK #-} !Double
+  , samplerAccepts    :: {-# UNPACK #-} !Int    -- Metropolis acceptance count
+  , samplerTries      :: {-# UNPACK #-} !Int    -- Metropolis attempts count
   }
 
 instance Show (Sampler a) where
@@ -130,6 +135,8 @@ initialize n m prior logLikelihood samplerPerturber gen = do
         samplerLogZ       = -1E300
         samplerInfo       = 0
         samplerLikelihood = logLikelihood
+        samplerAccepts    = 0
+        samplerTries      = 0
     return Sampler {..}
   where
     samplerDim   = if n <= 1 then 1 else n
