@@ -217,15 +217,6 @@ updateParticles Sampler {..} gen = do
   return (updated, c)
 {-# INLINE updateParticles #-}
 
--- | Choose a number in the supplied range that is different from the supplied
---   reference.
-chooseCopy :: Int -> Int -> Gen RealWorld -> IO Int
-chooseCopy ref n = loop where
-  loop prng = do
-    index <- MWC.uniformR (0, n - 1) prng
-    if   index == ref && n > 1
-    then loop prng
-    else return $! index
 
 metropolisUpdates
   :: Int
@@ -298,7 +289,4 @@ writeToFile LoggingOptions {..} mode sampler particle = do
       hClose sample
 {-# INLINE writeToFile #-}
 
--- | Hoist a 'Maybe' into a 'MaybeT'.
-hoistMaybe :: Monad m => Maybe a -> MaybeT m a
-hoistMaybe = MaybeT . return
 

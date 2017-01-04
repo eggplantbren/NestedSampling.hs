@@ -2,8 +2,9 @@
 
 module NestedSampling.Utils where
 
+import Control.Monad.Trans.Maybe
 import Control.Monad.Primitive (RealWorld)
-import System.Random.MWC as MWC (Gen, uniform)
+import System.Random.MWC as MWC (Gen, uniform, uniformR)
 import System.Random.MWC.Distributions as MWC (standard)
 
 -- Logsumexp
@@ -41,4 +42,18 @@ randh gen = do
     transform a b n =
       let t = a/sqrt (- (log b))
       in  10.0**(1.5 - 3.0 * abs t)*n
+
+-- | Hoist a 'Maybe' into a 'MaybeT'.
+hoistMaybe :: Monad m => Maybe a -> MaybeT m a
+hoistMaybe = MaybeT . return
+
+-- | Choose a number in the supplied range that is different from the supplied
+--   reference.
+chooseCopy :: Int -> Int -> Gen RealWorld -> IO Int
+chooseCopy ref n = loop where
+  loop prng = do
+    index <- MWC.uniformR (0, n - 1) prng
+    if   index == ref && n > 1
+    then loop prng
+    else return $! index
 
