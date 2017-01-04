@@ -11,11 +11,6 @@ module NestedSampling.Sampler (
     -- * sampling types
   , Sampler(..)
   , Particles
-
-    -- * logging
-  , LoggingOptions(..)
-  , defaultLogging
-  , noLogging
   ) where
 
 import Control.Monad
@@ -27,6 +22,7 @@ import qualified Data.IntPSQ as PSQ
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Formatting
+import NestedSampling.Logging
 import NestedSampling.Utils
 import System.IO
 import System.Random.MWC (Gen)
@@ -91,28 +87,6 @@ render Sampler {..} =
     sllworst = case llworst of
       Nothing -> "NA"
       Just p  -> show p
-
-data LoggingOptions = LoggingOptions {
-    logSamplerFile    :: Maybe FilePath
-  , logParametersFile :: Maybe FilePath
-  , logProgress       :: Bool
-  }
-
--- | Default logging options for samplers.
-defaultLogging :: LoggingOptions
-defaultLogging = LoggingOptions {
-    logSamplerFile    = Just "nested_sampling_info.csv"
-  , logParametersFile = Just "nested_sampling_parameters.csv"
-  , logProgress       = True
-  }
-
--- | Quiet (stdout-only) logging options for samplers.
-noLogging :: LoggingOptions
-noLogging = LoggingOptions {
-    logSamplerFile    = Nothing
-  , logParametersFile = Nothing
-  , logProgress       = True
-  }
 
 -- | Initialize a sampler with the provided dimension, number of steps, prior,
 --   perturbation function, and log-likelihood.

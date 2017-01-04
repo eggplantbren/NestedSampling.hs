@@ -1,4 +1,5 @@
 import Model.SpikeSlab
+import NestedSampling.Logging
 import NestedSampling.Sampler
 import System.Random.MWC (withSystemRandom, asGenIO)
 

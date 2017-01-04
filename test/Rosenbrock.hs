@@ -1,4 +1,5 @@
 import Model.Rosenbrock
+import NestedSampling.Logging
 import NestedSampling.Sampler
 import System.Random.MWC hiding (initialize)
 
