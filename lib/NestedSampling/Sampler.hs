@@ -148,12 +148,17 @@ nestedSamplingIteration LoggingOptions {..} Sampler {..} gen = do
         + exp (samplerLogZ - samplerLogZ') * (samplerInfo + samplerLogZ)
         - samplerLogZ'
 
-  -- Are we on an iteration where we'd print messages?
-  let printing = samplerIter `mod` samplerDim == 0
+  -- Are we on an iteration where we'd print messages to stdout?
+  let printing = samplerIter `mod` samplerDim == 0 :: Bool
 
+  -- Saving stuff to file
   lift $ do
-    let iomode = if samplerIter /= 1 then AppendMode else WriteMode
-    writeToFile LoggingOptions {..} iomode Sampler {..} worst
+    let iomode = if samplerIter /= logThinning then AppendMode else WriteMode
+    when (samplerIter `mod` logThinning == 0) $
+      writeToFile LoggingOptions {..} iomode Sampler {..} worst
+
+  -- Printing stuff to screen
+  lift $ do
     when (logProgress && printing) $ print Sampler {..}
     let a    = samplerAccepts + accepts
         c    = samplerTries + samplerSteps

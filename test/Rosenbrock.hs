@@ -1,3 +1,4 @@
+import Data.Maybe
 import Model.Rosenbrock
 import NestedSampling.Logging
 import NestedSampling.Sampler
@@ -16,8 +17,12 @@ main = withSystemRandom . asGenIO $ \gen -> do
     origin <- initialize
                 numParticles mcmcSteps fromPrior logLikelihood perturb gen
 
+
+    -- Logging options with thinning
+    let loggingOptions = fromMaybe (error "Bad thinning value.") (thinnedBy 100)
+
     -- Do NS iterations until maxDepth is reached
-    _ <- nestedSampling defaultLogging numIterations origin gen
+    _ <- nestedSampling loggingOptions numIterations origin gen
 
     return ()
 
