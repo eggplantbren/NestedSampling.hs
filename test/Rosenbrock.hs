@@ -11,7 +11,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
     let numParticles  = 1000    :: Int
         mcmcSteps     = 1000    :: Int
         maxDepth      = 80.0    :: Double
-        numIterations = floor $ maxDepth * (fromIntegral numParticles) :: Int
+        numIterations = floor $ maxDepth * fromIntegral numParticles :: Int
 
     -- Create the sampler
     origin <- initialize
