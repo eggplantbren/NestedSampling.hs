@@ -31,3 +31,12 @@ dump output information to a couple of CSV files:
 * `nested_sampling_parameters.csv` includes parameter information (where one
   line = one sample).
 
+You can then run a Python postprocessing script to generate some plots,
+and a text file of posterior weights:
+
+```
+$ python showresults.py
+```
+
+This script requires NumPy, Matplotlib, and Pandas.
+
