@@ -12,3 +12,5 @@ tags
 .ghci
 *csv
 *dat
+posterior_weights.txt
+__pycache__
