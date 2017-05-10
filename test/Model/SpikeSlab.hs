@@ -12,9 +12,9 @@ import qualified System.Random.MWC as MWC
 logLikelihood :: U.Vector Double -> Double
 logLikelihood params = logsumexp (logl1 + log 100.0) logl2
     where logl1 = (fromIntegral n)*(c - log u)
-                        - 0.5*(U.sum $ U.map (\x -> ((x - shift)/u)**2) params)
+                        - 0.5*(U.foldl' (\acc x -> acc + ((x - shift)/u)**2) 0.0 params)
           logl2 = (fromIntegral n)*(c - log v)
-                        - 0.5*(U.sum $ U.map (\x -> (x/v)**2) params)
+                        - 0.5*(U.foldl' (\acc x -> acc + (x/v)**2) 0.0 params)
           c = -0.5*log(2*pi)    :: Double
           u = 0.01              :: Double
           v = 0.1               :: Double
