@@ -48,6 +48,22 @@ Test-suite spikeslab
     , primitive          >= 0.6 && < 1
     , vector             >= 0.11 && < 1
 
+Test-suite ising
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    test
+  Main-is:           Ising.hs
+  default-language:  Haskell2010
+  ghc-options:
+    -O2 -Wall
+  other-modules:
+      Model.Ising
+  build-depends:
+      base               >= 4.8 && < 5
+    , NestedSampling-hs
+    , mwc-random         >= 0.13 && < 1
+    , primitive          >= 0.6 && < 1
+    , vector             >= 0.11 && < 1
+
 Test-suite rosenbrock
   type:              exitcode-stdio-1.0
   hs-source-dirs:    test
