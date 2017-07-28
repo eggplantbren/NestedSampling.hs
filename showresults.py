@@ -37,6 +37,7 @@ W = np.exp(logW - logsumexp(logW))
 np.savetxt("posterior_weights.txt", W)
 
 # Create posterior samples
+W /= W.max()
 Wnormed = W/W.sum()
 ESS = int(np.exp(-np.sum(Wnormed*np.log(Wnormed + 1E-300))))
 print("Effective sample size = {ESS}".format(ESS=ESS))
