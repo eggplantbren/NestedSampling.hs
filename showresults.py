@@ -36,6 +36,21 @@ W = np.exp(logW - logsumexp(logW))
 # Save posterior weights
 np.savetxt("posterior_weights.txt", W)
 
+# Create posterior samples
+Wnormed = W/W.sum()
+ESS = int(np.exp(-np.sum(Wnormed*np.log(Wnormed + 1E-300))))
+print("Effective sample size = {ESS}".format(ESS=ESS))
+posterior_sample = np.empty((ESS, sample.shape[1]))
+for i in range(0, ESS):
+    while True:
+        k = rng.randint(sample.shape[0])
+        if rng.rand() <= W[k]:
+            break
+    posterior_sample[i, :] = sample.iloc[k, :]
+
+np.savetxt("posterior_sample.txt", posterior_sample)
+    
+
 # Make the standard NS plots
 plt.figure(figsize=(10, 6))
 plt.subplot(2,1,1)
