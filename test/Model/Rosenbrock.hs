@@ -10,7 +10,7 @@ import System.Random.MWC as MWC (Gen, uniform, uniformR)
 
 -- c.f. the one in DNest4, which is 50 dimensional
 numDimensions :: Int
-numDimensions = 10
+numDimensions = 50
 
 -- Log likelihood function
 logLikelihood :: U.Vector Double -> Double
@@ -29,12 +29,12 @@ fromPrior gen = do
 -- Perturber (returns logH and perturbed value)
 perturb :: U.Vector Double -> Gen RealWorld -> IO (Double, U.Vector Double)
 perturb particle gen = do
-    justOne <- MWC.uniform gen :: IO Bool
-    reps <- do
-              u <- MWC.uniform gen :: IO Double
-              let extra = floor ((fromIntegral $ U.length particle)**u)
-              return (if justOne then 1 else (1 + extra)) :: IO Int
-    perturbed <- perturbCoord reps particle gen
+--    justOne <- MWC.uniform gen :: IO Bool
+--    reps <- do
+--              u <- MWC.uniform gen :: IO Double
+--              let extra = floor ((fromIntegral $ U.length particle)**u)
+--              return (if justOne then 1 else (1 + extra)) :: IO Int
+    perturbed <- perturbCoord 1 particle gen
     return (0.0, perturbed)
 
 -- | Perturb a single coordinate 'reps' times

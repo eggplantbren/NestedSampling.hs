@@ -10,7 +10,7 @@ import qualified System.Random.MWC as MWC
 
 -- Log likelihood function
 logLikelihood :: U.Vector Double -> Double
-logLikelihood params = logsumexp (logl1 + log 100.0) logl2
+logLikelihood params = logsumexp (logl1 + log 0.5) (logl2 + log 0.5)
     where logl1 = (fromIntegral n)*(c - log u)
                         - 0.5*(U.foldl' (\acc x -> acc + ((x - shift)/u)**2) 0.0 params)
           logl2 = (fromIntegral n)*(c - log v)
