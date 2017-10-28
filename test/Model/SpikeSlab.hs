@@ -4,6 +4,7 @@ module Model.SpikeSlab where
 import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
+import NestedSampling.Model
 import NestedSampling.Utils
 import System.Random.MWC (Gen, uniform)
 import qualified System.Random.MWC as MWC
@@ -47,4 +48,8 @@ perturb particle gen = do
   where
     perturbSingle :: Double -> Double -> Double
     perturbSingle x rh = (`wrap` (-0.5, 0.5)) $ x + rh
+
+
+spikeslabModel :: Model (U.Vector Double)
+spikeslabModel = Model fromPrior perturb logLikelihood
 

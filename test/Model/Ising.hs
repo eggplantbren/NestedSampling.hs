@@ -4,6 +4,7 @@ module Model.Ising where
 import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
+import NestedSampling.Model
 import System.Random.MWC
 
 -- Log likelihood function
@@ -32,4 +33,7 @@ perturb xs gen = do
       U.unsafeFreeze mvec
 
     return (0.0, perturbed)
+
+isingModel :: Model (U.Vector Int)
+isingModel = Model fromPrior perturb logLikelihood
 

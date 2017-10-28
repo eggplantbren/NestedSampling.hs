@@ -14,8 +14,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
         numIterations = floor $ maxDepth * fromIntegral numParticles :: Int
 
     -- Create the sampler
-    origin <- initialize
-                numParticles mcmcSteps fromPrior logLikelihood perturb gen
+    origin <- initialize numParticles mcmcSteps isingModel gen
 
     -- Logging options with thinning
     let loggingOptions = fromMaybe (error "Bad thinning value.")
