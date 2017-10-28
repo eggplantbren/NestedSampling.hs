@@ -49,7 +49,7 @@ for i in range(0, ESS):
             break
     posterior_sample[i, :] = sample.iloc[k, :]
 
-np.savetxt("posterior_sample.txt", posterior_sample)
+np.savetxt("posterior_sample.csv", posterior_sample, delimiter=",")
     
 
 # Make the standard NS plots
