@@ -3,6 +3,7 @@ module Model.Rosenbrock where
 import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
+import NestedSampling.Model
 import NestedSampling.Utils
 import System.Random.MWC as MWC (Gen, uniform, uniformR)
 
@@ -64,4 +65,8 @@ perturbCoord reps particle gen
         perturbSingle :: Double -> Double -> Double
         perturbSingle x rh = wrap (x + 20.0*rh) (-10.0, 10.0)
 
+
+-- The model, all encapsulated
+rosenbrockModel :: Model (U.Vector Double)
+rosenbrockModel = Model fromPrior perturb logLikelihood
 

@@ -20,6 +20,7 @@ library
     -Wall -O2
   exposed-modules:
       NestedSampling.Logging
+    , NestedSampling.Model
     , NestedSampling.Sampler
     , NestedSampling.Utils
   build-depends:
