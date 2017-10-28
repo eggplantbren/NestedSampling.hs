@@ -23,6 +23,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Formatting
 import NestedSampling.Logging
+import NestedSampling.Model
 import NestedSampling.Utils
 import System.IO
 import System.Random.MWC (Gen)
@@ -93,22 +94,21 @@ render Sampler {..} =
 initialize
   :: Int                            -- ^ Number of particles
   -> Int                            -- ^ Number of MCMC steps
-  -> (Gen RealWorld -> IO a)        -- ^ Sampling function for prior
-  -> (a -> Double)                  -- ^ Log-likelihood function
-  -> Perturber a                    -- ^ Perturbation function
+  -> Model a                        -- ^ Model specification
   -> Gen RealWorld                  -- ^ PRNG
   -> IO (Sampler a)
-initialize n m prior logLikelihood samplerPerturber gen = do
-    particles <- replicateM samplerDim (prior gen)
+initialize n m (Model {..}) gen = do
+    particles <- replicateM samplerDim (modelFromPrior gen)
     tbs       <- replicateM samplerDim (MWC.uniform gen)
 
-    let lls               = fmap logLikelihood particles
+    let lls               = fmap modelLogLikelihood particles
         lltbs             = zipWith Lltb lls tbs
         samplerParticles  = PSQ.fromList (zip3 [0..] lltbs particles)
         samplerIter       = 1
         samplerLogZ       = -1E300
         samplerInfo       = 0
-        samplerLikelihood = logLikelihood
+        samplerPerturber  = modelPerturb
+        samplerLikelihood = modelLogLikelihood
         samplerAccepts    = 0
         samplerTries      = 0
     return Sampler {..}
