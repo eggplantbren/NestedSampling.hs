@@ -1,5 +1,5 @@
 name:                NestedSampling-hs
-version:             0.4.0
+version:             0.5.0
 synopsis:            Classic Nested Sampling.
 license:             MIT
 license-file:        LICENSE
@@ -41,7 +41,7 @@ Test-suite spikeslab
   ghc-options:
     -O2 -Wall
   other-modules:
-      Model.SpikeSlab
+      Models.SpikeSlab
   build-depends:
       base               >= 4.8 && < 5
     , NestedSampling-hs
@@ -57,7 +57,7 @@ Test-suite ising
   ghc-options:
     -O2 -Wall
   other-modules:
-      Model.Ising
+      Models.Ising
   build-depends:
       base               >= 4.8 && < 5
     , NestedSampling-hs
@@ -73,7 +73,7 @@ Test-suite rosenbrock
   ghc-options:
     -O2 -Wall
   other-modules:
-      Model.Rosenbrock
+      Models.Rosenbrock
   build-depends:
       base               >= 4.8 && < 5
     , NestedSampling-hs
@@ -89,7 +89,7 @@ Test-suite mini-spikeslab
   ghc-options:
     -O2 -fprof-auto -rtsopts
   other-modules:
-      Model.SpikeSlab
+      Models.SpikeSlab
   build-depends:
       base               >= 4.8 && < 5
     , NestedSampling-hs

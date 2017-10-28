@@ -1,5 +1,5 @@
 import Data.Maybe
-import Model.Ising
+import Models.Ising
 import NestedSampling.Logging
 import NestedSampling.Sampler
 import System.Random.MWC (withSystemRandom, asGenIO)

@@ -1,5 +1,5 @@
 
-module Model.SpikeSlab where
+module Models.SpikeSlab where
 
 import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector.Unboxed as U

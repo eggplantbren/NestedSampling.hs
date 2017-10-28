@@ -1,4 +1,4 @@
-module Model.Rosenbrock where
+module Models.Rosenbrock where
 
 import Control.Monad.Primitive (RealWorld)
 import qualified Data.Vector.Unboxed as U
