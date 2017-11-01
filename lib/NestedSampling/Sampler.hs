@@ -153,9 +153,12 @@ nestedSamplingIteration LoggingOptions {..} Sampler {..} gen = do
 
   -- Saving stuff to file
   lift $ do
-    let iomode = if samplerIter /= logThinning then AppendMode else WriteMode
+    when (samplerIter == 1) $ writeHeader LoggingOptions {..}
+    let mode = if samplerIter `div` logThinning == 1
+               then WriteMode
+               else AppendMode
     when (samplerIter `mod` logThinning == 0) $
-      writeToFile LoggingOptions {..} iomode Sampler {..} worst
+      writeToFile LoggingOptions {..} mode Sampler {..} worst
 
   -- Printing stuff to screen
   lift $ do
@@ -244,6 +247,17 @@ metropolisUpdate (Lltb llThresh tbThresh) (Lltb ll tb, x, c)
     else (Lltb ll tb, x, c)
 {-# INLINE metropolisUpdate #-}
 
+-- | Write the CSV header
+writeHeader :: LoggingOptions -> IO ()
+writeHeader LoggingOptions {..} = do
+  case logSamplerFile of
+    Nothing    -> return ()
+    Just file  -> do
+      sampleInfo <- openFile file WriteMode
+      T.hPutStrLn sampleInfo "n,ln_x,ln_prior_weight,ln_l,ln_z,h"
+      hClose sampleInfo
+{-# INLINE writeHeader #-}
+
 -- | Write sampler/particle information to disk.
 writeToFile
   :: Show a
@@ -252,10 +266,8 @@ writeToFile LoggingOptions {..} mode sampler particle = do
   case logSamplerFile of
     Nothing   -> return ()
     Just file -> do
-      sampleInfo <- openFile file mode
-      when (mode == WriteMode) $
-        T.hPutStrLn sampleInfo "n,ln_x,ln_prior_weight,ln_l,ln_z,h"
-
+      -- Always append mode for the info file
+      sampleInfo <- openFile file AppendMode
       T.hPutStrLn sampleInfo $ render sampler
       hClose sampleInfo
 
