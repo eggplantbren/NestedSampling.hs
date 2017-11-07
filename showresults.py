@@ -58,7 +58,7 @@ def loadtxt_rows(filename, rows, single_precision=False):
     results["ncol"] = ncol
     return results
 
-def postprocess(single_precision=False):
+def postprocess(single_precision=False, temperature=1.0):
 
     # Load the files
     #sample      = pd.read_csv("nested_sampling_parameters.csv", header=None)
@@ -75,7 +75,7 @@ def postprocess(single_precision=False):
 
     # Calculate logZ, posterior weights, and H
     logZ = logsumexp(logw + sample_info["ln_l"])
-    logW = logw + sample_info["ln_l"] - logZ
+    logW = logw + sample_info["ln_l"]/temperature - logZ
     W = np.exp(logW - logsumexp(logW))
 
     # Save posterior weights
