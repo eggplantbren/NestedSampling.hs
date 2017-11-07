@@ -58,13 +58,13 @@ fromPrior rng = do
     let temp = IsingState xs 0
 
     -- Products of left-right neighbours, row i
-    let row i = [ (element temp i j) * (element temp i (j+1))
-                        | j <- [0..(n-2)] ]
+    let row i = [ (element temp i j) * (element temp i (mod (j+1) n))
+                        | j <- [0..(n-1)] ]
     let rowSum i = sum $ row i
 
     -- Products of up-down neighbours, column j
-    let col j = [ (element temp i j) * (element temp (i+1) j+1)
-                        | i <- [0..(m-2)] ]
+    let col j = [ (element temp i j) * (element temp (mod (i+1) m) j)
+                        | i <- [0..(m-1)] ]
     let colSum j = sum $ col j
 
     -- Totals
@@ -93,14 +93,14 @@ perturb old@(IsingState {..}) gen = do
     let new = IsingState spins' 0
 
     -- Product of position (i, j) with neighbours
-    let up isingState = if i == 0 then 0 else (element isingState i j)*
-                                              (element isingState (i-1) j)
-    let down isingState = if i == (m-1) then 0 else (element isingState i j)*
-                                                    (element isingState (i+1) j)
-    let left isingState = if j == 0 then 0 else (element isingState i j)*
-                                                (element isingState i (j-1))
-    let right isingState = if j == (n-1) then 0 else (element isingState i j)*
-                                              (element isingState i (j+1))
+    let up isingState = (element isingState i j)*
+                             (element isingState (mod (i-1) m) j)
+    let down isingState = (element isingState i j)*
+                               (element isingState (mod (i+1) m) j)
+    let left isingState = (element isingState i j)*
+                               (element isingState i (mod (j-1) m))
+    let right isingState = (element isingState i j)*
+                               (element isingState i (mod (j+1) m))
 
     -- Change in energy
     let delta = up new + down new + left new + right new -
