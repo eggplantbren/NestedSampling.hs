@@ -8,9 +8,9 @@ main :: IO ()
 main = withSystemRandom . asGenIO $ \gen -> do
 
     -- Set the properties of the run you want to do
-    let numParticles  = 1000   :: Int
-        mcmcSteps     = 1000  :: Int
-        maxDepth      = 500.0 :: Double
+    let numParticles  = 1       :: Int
+        mcmcSteps     = 10000   :: Int
+        maxDepth      = 10000.0 :: Double
         numIterations = floor $ maxDepth * fromIntegral numParticles :: Int
 
     -- Create the sampler
@@ -18,7 +18,7 @@ main = withSystemRandom . asGenIO $ \gen -> do
 
     -- Logging options with thinning
     let loggingOptions = fromMaybe (error "Bad thinning value.")
-                                   (thinnedBy 1000)
+                                   (thinnedBy 10)
 
     -- Do NS iterations until maxDepth is reached
     _ <- nestedSampling loggingOptions numIterations origin gen
