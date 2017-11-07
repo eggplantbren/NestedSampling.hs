@@ -88,10 +88,8 @@ def postprocess(single_precision=False, temperature=1.0):
     print("Effective sample size = {ESS}".format(ESS=ESS))
 
     # Make the standard NS plots
-    plt.figure(figsize=(10, 6))
     plt.subplot(2,1,1)
     plt.plot(sample_info["ln_x"], sample_info["ln_l"], "-", markersize=3)
-    plt.xlabel("$\\ln(X)$")
     plt.ylabel("$\\ln(L)$")
     plt.title("Likelihood curve")
 
