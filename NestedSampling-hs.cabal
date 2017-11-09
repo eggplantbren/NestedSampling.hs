@@ -21,6 +21,7 @@ library
   exposed-modules:
       NestedSampling.Logging
     , NestedSampling.Model
+    , NestedSampling.ParallelSampler
     , NestedSampling.Sampler
     , NestedSampling.Utils
   build-depends:
