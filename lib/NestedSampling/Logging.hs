@@ -1,12 +1,14 @@
 {- Types, variables and functions related to logging. -}
-
 module NestedSampling.Logging (
     -- * logging
     LoggingOptions(..)
   , defaultLogging
   , noLogging
+  , numberLogging
   , thinnedBy
   ) where
+
+import Data.Word
 
 data LoggingOptions = LoggingOptions {
     logSamplerFile    :: Maybe FilePath
@@ -20,6 +22,15 @@ defaultLogging :: LoggingOptions
 defaultLogging = LoggingOptions {
     logSamplerFile    = Just "nested_sampling_info.csv"
   , logParametersFile = Just "nested_sampling_parameters.csv"
+  , logProgress       = True
+  , logThinning       = 1
+  }
+
+-- | Append a number to filenames.
+numberLogging :: Word32 -> LoggingOptions
+numberLogging i = LoggingOptions {
+    logSamplerFile    = Just $ "nested_sampling_info" ++ (show i) ++ ".csv"
+  , logParametersFile = Just $ "nested_sampling_parameters" ++ (show i) ++ ".csv"
   , logProgress       = True
   , logThinning       = 1
   }
