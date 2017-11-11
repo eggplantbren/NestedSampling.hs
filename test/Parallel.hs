@@ -1,11 +1,13 @@
 import Control.Monad.Trans.Maybe
 import Models.SpikeSlab
-import NestedSampling.Logging
 import NestedSampling.ParallelSampler
-import System.Random.MWC (withSystemRandom, asGenIO)
 
 main :: IO ()
-main = withSystemRandom . asGenIO $ \gen -> do
+main = do
+
+    -- First rng seed
+    let firstSeed = 0
+    let numThreads = 4
 
     -- Set the properties of the run you want to do
     let numParticles  = 100     :: Int
@@ -13,13 +15,15 @@ main = withSystemRandom . asGenIO $ \gen -> do
         maxDepth      = 100.0   :: Double
         numIterations = floor $ maxDepth * fromIntegral numParticles :: Int
 
-    -- Create the sampler
+    -- Create the ParallelSampler
     origin <- runMaybeT $
-                makeParallelSampler numParticles mcmcSteps 8 0 spikeslabModel
+                makeParallelSampler numParticles mcmcSteps
+                                    numThreads firstSeed spikeslabModel
 
---    -- Do NS iterations until maxDepth is reached
---    _ <- nestedSampling defaultLogging numIterations origin gen
-
+    -- Do NS iterations until maxDepth is reached
+    _ <- case origin of
+              Nothing -> return ()
+              Just s  -> runParallelSampler s numIterations
 
     return ()
 

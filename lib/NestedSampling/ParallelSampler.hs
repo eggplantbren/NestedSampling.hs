@@ -1,4 +1,7 @@
-module NestedSampling.ParallelSampler (makeParallelSampler) where
+{-# LANGUAGE RecordWildCards #-}
+
+module NestedSampling.ParallelSampler (makeParallelSampler,
+                                       runParallelSampler) where
 
 -- Imports
 import Control.Monad.Primitive
@@ -50,4 +53,17 @@ makeParallelSampler numParticles mcmcSteps numThreads firstSeed model
                         numThreads samplers generators loggingOptions
 
         return $! sampler
+
+runParallelSampler :: Show a =>
+                      ParallelSampler a -> Int -> IO ()
+runParallelSampler (ParallelSampler {..}) numIterations = do
+  
+    -- Bind (C++ lingo) numIterations to nestedSampling function
+    -- i.e., partial currying ?
+    let ns logger sampler rng = nestedSampling logger numIterations sampler rng
+
+    -- A bunch of actions, one for each sampler
+    let jobs = V.zipWith3 ns psLogs psSamplers psGenerators
+    _ <- V.sequence jobs
+    return ()
 

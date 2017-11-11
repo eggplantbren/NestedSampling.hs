@@ -29,8 +29,10 @@ defaultLogging = LoggingOptions {
 -- | Append a number to filenames.
 numberLogging :: Word32 -> LoggingOptions
 numberLogging i = LoggingOptions {
-    logSamplerFile    = Just $ "nested_sampling_info" ++ (show i) ++ ".csv"
-  , logParametersFile = Just $ "nested_sampling_parameters" ++ (show i) ++ ".csv"
+    logSamplerFile    = Just $ "parallel-output/nested_sampling_info"
+                                    ++ (show i) ++ ".csv"
+  , logParametersFile = Just $ "parallel-output/nested_sampling_parameters"
+                                    ++ (show i) ++ ".csv"
   , logProgress       = True
   , logThinning       = 1
   }
