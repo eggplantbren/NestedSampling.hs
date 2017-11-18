@@ -67,3 +67,11 @@ runParallelSampler (ParallelSampler {..}) numIterations = do
     _ <- V.sequence jobs
     return ()
 
+
+-- Combine multiple runs into one
+combineRuns :: ParallelSampler a -> IO ()
+combineRuns ParallelSampler {..} = do
+
+    return ()
+
+
