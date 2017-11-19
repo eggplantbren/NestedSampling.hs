@@ -7,12 +7,14 @@ module NestedSampling.ParallelSampler (makeParallelSampler,
 import Control.Monad.Primitive
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe
+import Data.List.Split
 import qualified Data.Vector as V
 import Data.Word
 import NestedSampling.Logging
 import NestedSampling.Model
 import NestedSampling.Sampler
 import NestedSampling.Utils
+import System.IO
 import System.Random.MWC as MWC
 
 -- A type representing parallel sampler (contains many regular samplers)
@@ -54,6 +56,7 @@ makeParallelSampler numParticles mcmcSteps numThreads firstSeed model
 
         return $! sampler
 
+-- Execute all the samplers (currently serial)
 runParallelSampler :: Show a =>
                       ParallelSampler a -> Int -> IO ()
 runParallelSampler (ParallelSampler {..}) numIterations = do
@@ -65,6 +68,10 @@ runParallelSampler (ParallelSampler {..}) numIterations = do
     -- A bunch of actions, one for each sampler
     let jobs = V.zipWith3 ns psLogs psSamplers psGenerators
     _ <- V.sequence jobs
+
+    -- Combine the runs
+    combineRuns ParallelSampler {..}
+
     return ()
 
 
@@ -72,6 +79,25 @@ runParallelSampler (ParallelSampler {..}) numIterations = do
 combineRuns :: ParallelSampler a -> IO ()
 combineRuns ParallelSampler {..} = do
 
+    -- Grab the filenames of the info files
+    let infoFilenames = V.map logSamplerFile psLogs
+
+    case (infoFilenames V.! 0) of
+        Nothing -> return ()
+        Just f  -> do
+                       h <- openFile f ReadMode
+                       lltb <- readLogLikelihood h
+                       print lltb
+                       return ()
+
     return ()
 
+
+-- Read log likelihoods from a line of an info file
+readLogLikelihood :: Handle -> IO Lltb
+readLogLikelihood file = do
+    line <- hGetLine file
+    let cells = splitOn "," line
+    print cells
+    return $ Lltb 0.0 0.0
 

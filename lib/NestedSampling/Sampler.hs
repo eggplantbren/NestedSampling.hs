@@ -9,6 +9,7 @@ module NestedSampling.Sampler (
   , nestedSampling
 
     -- * sampling types
+  , Lltb(..)
   , Sampler(..)
   , Particles
   ) where
@@ -31,7 +32,7 @@ import qualified System.Random.MWC as MWC hiding (initialize)
 
 -- Likelihood and tiebreaker
 data Lltb = Lltb {-# UNPACK #-} !Double {-# UNPACK #-} !Double
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 -- The particles, arranged into a PSQ
 type Particles a = IntPSQ Lltb a
