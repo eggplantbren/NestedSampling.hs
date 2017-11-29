@@ -86,7 +86,7 @@ combineRuns ParallelSampler {..} = do
         Nothing -> return ()
         Just f  -> do
                        h <- openFile f ReadMode
-                       lltb <- readLogLikelihood h
+                       lltb <- runMaybeT $ readLogLikelihood h
                        print lltb
                        return ()
 
@@ -94,10 +94,11 @@ combineRuns ParallelSampler {..} = do
 
 
 -- Read log likelihoods from a line of an info file
-readLogLikelihood :: Handle -> IO Lltb
+readLogLikelihood :: Handle -> MaybeT IO Lltb
 readLogLikelihood file = do
-    line <- hGetLine file
-    let cells = splitOn "," line
-    print cells
-    return $ Lltb 0.0 0.0
+    line <- lift $ hGetLine file
+    if length line == 0 then hoistMaybe Nothing
+    else hoistMaybe (Just lltb) where
+        cells = splitOn "," line
+        lltb = Lltb 0.0 0.0
 
