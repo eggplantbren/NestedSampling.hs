@@ -96,7 +96,9 @@ def postprocess(single_precision=False, temperature=1.0):
     # Set y lower limit by excluding bottom 5%
     ln_l_sorted = np.sort(sample_info["ln_l"])
     lower_limit = ln_l_sorted[int(0.05*len(ln_l_sorted))]
-    plt.ylim(lower_limit)
+    upper_limit = ln_l_sorted[-1]
+    upper_limit += 0.05*(upper_limit - lower_limit)
+    plt.ylim([lower_limit, upper_limit])
 
     plt.subplot(2,1,2)
     plt.plot(sample_info["ln_x"], W, "-", markersize=3)
